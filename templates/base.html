@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinanceApp</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <h2><i class="fa-solid fa-wallet"></i> FinanceApp</h2>
+        
+        <a href="/" class="nav-item {{ 'active' if request.path == '/' }}">
+            <i class="fa-solid fa-chart-pie"></i> Dashboard
+        </a>
+        <a href="/lancamentos" class="nav-item {{ 'active' if request.path == '/lancamentos' }}">
+            <i class="fa-solid fa-money-bill-transfer"></i> Lançamentos
+        </a>
+        
+        <div class="submenu-label">Cadastros</div>
+        <a href="/configuracoes" class="nav-item {{ 'active' if request.path == '/configuracoes' }}">
+            <i class="fa-solid fa-tags"></i> Categorias
+        </a>
+        
+        <div class="submenu-label">Análise</div>
+        <a href="/relatorios" class="nav-item {{ 'active' if request.path == '/relatorios' }}">
+            <i class="fa-solid fa-file-invoice-dollar"></i> Relatórios
+        </a>
+    </div>
+
+    <div class="main-content">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

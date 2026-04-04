@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>📊 Dashboard</h1>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+    <div class="card-box">
+        <h3>💰 Realizado (Caixa)</h3>
+        <p style="color: #22c55e;">Recebido: {{ rec_real | brl }}</p>
+        <p style="color: #ef4444;">Pago: {{ des_real | brl }}</p>
+        <hr style="margin: 10px 0; border: 0; border-top: 1px solid #334155;">
+        <p>Saldo Atual: <strong>{{ (rec_real - des_real) | brl }}</strong></p>
+    </div>
+    
+    <div class="card-box card-previsao">
+        <h3>📅 Previsão Final do Mês</h3>
+        <p>Total Receitas: {{ rec_prev | brl }}</p>
+        <p>Total Despesas: {{ des_prev | brl }}</p>
+        <hr style="margin: 10px 0; border: 0; border-top: 1px solid #334155;">
+        <p>Saldo Previsto: <strong>{{ (rec_prev - des_prev) | brl }}</strong></p>
+    </div>
+</div>
+
+<div class="card-box" style="max-width: 400px;">
+    <h3>Gastos por Categoria (Pagos)</h3>
+    <canvas id="chartDespesas"></canvas>
+</div>
+
+<script>
+    new Chart(document.getElementById('chartDespesas'), {
+        type: 'doughnut',
+        data: {
+            labels: {{ categorias.keys()|list|tojson|safe }},
+            datasets: [{ data: {{ categorias.values()|list|tojson|safe }}, backgroundColor: ['#ef4444', '#3b82f6', '#f59e0b', '#10b981'] }]
+        }
+    });
+</script>
+{% endblock %}

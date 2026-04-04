@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1><i class="fa-solid fa-gears"></i> Configuração de Categorias</h1>
+
+<div class="config-grid">
+    <div class="card-box">
+        <h3><i class="fa-solid fa-plus-circle"></i> Nova Categoria</h3>
+        <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">Classifique seus lançamentos para melhores gráficos.</p>
+        
+        <form method="POST" action="/configuracoes/categoria/add">
+            <div class="form-group">
+                <label>Nome da Categoria</label>
+                <input name="nome" placeholder="Ex: Mercado, Freelance..." required style="width: 100%;">
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label>Tipo de Fluxo</label>
+                <select name="tipo" style="width: 100%;">
+                    <option value="Despesa">Despesa</option>
+                    <option value="Receita">Receita</option>
+                </select>
+            </div>
+            
+            <button type="submit" style="width: 100%;"><i class="fa-solid fa-plus"></i> Cadastrar</button>
+        </form>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>NOME</th>
+                    <th>TIPO</th>
+                    <th>AÇÕES</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in categorias %}
+                <tr>
+                    <td style="font-weight: bold; color: var(--text-main);">{{ c.nome }}</td>
+                    <td>
+                        <span style="color: {{ '#22c55e' if c.tipo == 'Receita' else '#f87171' }}">
+                            <i class="fa-solid {{ 'fa-arrow-up' if c.tipo == 'Receita' else 'fa-arrow-down' }}"></i> ● {{ c.tipo }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="javascript:void(0)" class="action-btn edit" 
+                           onclick="openEditModal('{{ c.id }}', '{{ c.nome }}', '{{ c.tipo }}')" title="Editar">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </a>
+                        <a href="/configuracoes/categoria/delete/{{ c.id }}" class="action-btn delete" onclick="return confirm('Excluir categoria?')" title="Excluir">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="editModal" class="modal">
+    <div class="modal-content">
+        <form id="editForm" method="POST" action="" class="modal-form">
+            
+            <div class="modal-header form-full">
+                <i class="fa-solid fa-pen-to-square"></i> Editar Categoria
+            </div>
+
+            <div class="form-group">
+                <label>Nome</label>
+                <input type="text" name="nome" id="edit_nome" required>
+            </div>
+
+            <div class="form-group">
+                <label>Tipo</label>
+                <select name="tipo" id="edit_tipo">
+                    <option value="Despesa">Despesa</option>
+                    <option value="Receita">Receita</option>
+                </select>
+            </div>
+
+            <div class="modal-actions form-full">
+                <button type="submit" class="btn-action">
+                    <i class="fa-solid fa-floppy-disk"></i> Salvar
+                </button>
+                <button type="button" class="btn-cancel" onclick="closeModal()">
+                    Cancelar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditModal(id, nome, tipo) {
+        document.getElementById('editForm').action = '/configuracoes/categoria/edit/' + id;
+        document.getElementById('edit_nome').value = nome;
+        document.getElementById('edit_tipo').value = tipo;
+        document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('editModal').style.display = 'none';
+    }
+
+    // Fechar ao clicar fora do modal
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('editModal')) {
+            closeModal();
+        }
+    }
+</script>
+{% endblock %}

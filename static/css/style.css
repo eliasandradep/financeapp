@@ -1,0 +1,180 @@
+:root {
+    --sidebar-width: 260px;
+    --bg-color: #0f172a;
+    --card-bg: #1e293b;
+    --card-hover: #2d3e57;
+    --accent: #3b82f6;
+    --text-main: #f1f5f9;
+    --text-muted: #94a3b8;
+    --border-color: #334155;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+
+body { background: var(--bg-color); color: var(--text-main); display: flex; min-height: 100vh; overflow-x: hidden; }
+
+/* SIDEBAR */
+.sidebar {
+    width: var(--sidebar-width);
+    background: var(--card-bg);
+    padding: 30px 20px;
+    position: fixed;
+    height: 100vh;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+}
+
+.sidebar h2 { margin-bottom: 40px; color: var(--accent); text-align: center; }
+
+.nav-item { 
+    display: flex; align-items: center; gap: 12px;
+    color: var(--text-muted); text-decoration: none; 
+    padding: 12px 15px; border-radius: 8px; margin-bottom: 8px; transition: 0.2s; 
+}
+.nav-item i { width: 20px; text-align: center; }
+.nav-item:hover, .nav-item.active { background: var(--card-hover); color: white; }
+.nav-item.active { background: var(--accent); }
+
+.submenu-label { margin: 25px 0 10px 15px; color: #475569; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+
+/* CONTEÚDO PRINCIPAL */
+.main-content {
+    margin-left: var(--sidebar-width);
+    padding: 40px;
+    width: calc(100% - var(--sidebar-width));
+}
+
+h1 { margin-bottom: 30px; font-size: 1.8rem; display: flex; align-items: center; gap: 10px; }
+
+/* CARDS E FORMULÁRIOS INLINE */
+.card-box { background: var(--card-bg); padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+.card-box h3 { color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 0.5px; }
+
+.form-inline { background: var(--card-bg); padding: 20px; border-radius: 12px; margin-bottom: 30px; }
+.form-inline form { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+
+input, select, button { padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: #0f172a; color: white; transition: 0.2s; }
+input:focus, select:focus { border-color: var(--accent); outline: none; }
+
+button[type="submit"] { background: var(--success); border: none; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+button[type="submit"]:hover { opacity: 0.9; }
+
+/* TABELAS */
+.table-container { background: var(--card-bg); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+table { width: 100%; border-collapse: collapse; }
+th { background: #334155; padding: 15px; text-align: left; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; }
+td { padding: 15px; border-bottom: 1px solid var(--border-color); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--card-hover); }
+
+.tag { background: #334155; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; color: #cbd5e1; display: inline-flex; align-items: center; gap: 5px; }
+.vencido { color: var(--danger) !important; font-weight: bold; }
+
+/* STATUS E AÇÕES */
+.status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; transition: 0.2s; }
+.status-badge:hover { transform: translateY(-1px); }
+.status-pendente { background: var(--warning); color: #000; }
+.status-pago { background: var(--success); color: #fff; }
+
+.action-btn { font-size: 1.1rem; text-decoration: none; margin-left: 10px; transition: 0.2s; display: inline-block; }
+.action-btn:hover { transform: scale(1.1); }
+.action-btn.edit { color: var(--accent); }
+.action-btn.delete { color: var(--danger); }
+
+/* =========================================
+   MODAL RESPONSIVO (O "PULO DO GATO")
+   ========================================= */
+.modal {
+    display: none; /* JS controla a exibição */
+    position: fixed; z-index: 10000;
+    left: 0; top: 0; width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.85); /* Fundo mais escuro */
+    align-items: center; justify-content: center;
+    padding: 20px; /* Garante respiro no mobile */
+}
+
+.modal-content {
+    background: var(--card-bg);
+    padding: 30px;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 450px; /* MOBILE-FIRST: Formato retrato estreito */
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--border-color);
+    max-height: calc(100vh - 40px); /* Impede que o modal corte o topo/fundo da tela */
+    overflow-y: auto; /* Permite rolagem INTERNA se o conteúdo for muito alto */
+}
+
+.modal-header { margin-bottom: 25px; font-size: 1.4rem; font-weight: bold; color: var(--text-main); display: flex; align-items: center; gap: 10px; }
+
+/* Estrutura do formulário dentro do modal */
+.modal-form { display: flex; flex-direction: column; gap: 15px; }
+
+/* Grupo de Input (Label + Campo) */
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
+.form-group input, .form-group select { width: 100%; margin-bottom: 0; }
+
+/* Grupo de Checkbox */
+.checkbox-group { flex-direction: row; align-items: center; gap: 10px; padding: 10px 0; }
+.checkbox-group input { width: auto; }
+.checkbox-group label { color: var(--text-main); font-size: 0.9rem; }
+
+/* Botões do Modal */
+.modal .btn-action { background: var(--success); color: white; padding: 14px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; width: 100%; margin-top: 10px; font-size: 1rem; transition: 0.2s; }
+.modal .btn-action:hover { opacity: 0.9; }
+
+.modal .btn-cancel { background: #334155; color: #cbd5e1; margin-top: 10px; padding: 14px; border-radius: 8px; width: 100%; border: none; cursor: pointer; font-weight: bold; }
+
+/* -----------------------------------------
+   MEDIA QUERY: DESKTOP / WIDESCREEN
+   Ativa o formato "Paisagem" (2 colunas)
+   ----------------------------------------- */
+@media (min-width: 768px) {
+    .modal-content {
+        max-width: 800px; /* MODAL FICA LARGO (PAISAGEM) */
+        overflow-y: visible; /* Conteúdo deve caber na altura, removemos rolagem */
+    }
+    
+    .modal-form {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* DUAS COLUNAS LADO A LADO */
+        gap: 20px;
+        align-items: start;
+    }
+    
+    /* Faz os botões e os campos que devem ocupar a largura total quebrarem o grid */
+    .modal-header, .form-full, .checkbox-group, .modal-actions {
+        grid-column: span 2; /* Ocupa as duas colunas */
+    }
+    
+    /* Agrupa os botões de ação lado a lado no final */
+    .modal-actions {
+        display: flex;
+        gap: 15px;
+        margin-top: 20px;
+    }
+    
+    .modal .btn-action, .modal .btn-cancel {
+        margin-top: 0;
+        flex: 1; /* Botões dividem o espaço igualmente */
+    }
+}
+
+/* GRID CONFIGURAÇÕES (Fixo em duas colunas) */
+.config-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 30px; align-items: start; }
+
+/* RESPONSIVIDADE SIDEBAR (MOBILE) */
+@media (max-width: 991px) {
+    body { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; position: relative; flex-direction: row; flex-wrap: wrap; padding: 15px; border-right: none; border-bottom: 1px solid var(--border-color); justify-content: space-between; }
+    .sidebar h2 { margin-bottom: 0; font-size: 1.2rem; }
+    .nav-items { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 10px; width: 100%; }
+    .main-content { margin-left: 0; padding: 20px; width: 100%; }
+    .submenu-label { display: none; }
+}
