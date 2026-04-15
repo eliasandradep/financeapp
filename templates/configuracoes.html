@@ -1,19 +1,21 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1><i class="fa-solid fa-gears"></i> Configuração de Categorias</h1>
+<h1><i class="fa-solid fa-tags"></i> Categorias</h1>
 
 <div class="config-grid">
     <div class="card-box">
         <h3><i class="fa-solid fa-plus-circle"></i> Nova Categoria</h3>
-        <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">Classifique seus lançamentos para melhores gráficos.</p>
-        
+        <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">
+            Classifique seus lançamentos para melhores relatórios.
+        </p>
+
         <form method="POST" action="/configuracoes/categoria/add">
             <div class="form-group">
                 <label>Nome da Categoria</label>
                 <input name="nome" placeholder="Ex: Mercado, Freelance..." required style="width: 100%;">
             </div>
-            
+
             <div class="form-group" style="margin-bottom: 15px;">
                 <label>Tipo de Fluxo</label>
                 <select name="tipo" style="width: 100%;">
@@ -21,7 +23,7 @@
                     <option value="Receita">Receita</option>
                 </select>
             </div>
-            
+
             <button type="submit" style="width: 100%;"><i class="fa-solid fa-plus"></i> Cadastrar</button>
         </form>
     </div>
@@ -32,6 +34,7 @@
                 <tr>
                     <th>NOME</th>
                     <th>TIPO</th>
+                    <th>LANÇAMENTOS</th>
                     <th>AÇÕES</th>
                 </tr>
             </thead>
@@ -41,17 +44,37 @@
                     <td style="font-weight: bold; color: var(--text-main);">{{ c.nome }}</td>
                     <td>
                         <span style="color: {{ '#22c55e' if c.tipo == 'Receita' else '#f87171' }}">
-                            <i class="fa-solid {{ 'fa-arrow-up' if c.tipo == 'Receita' else 'fa-arrow-down' }}"></i> ● {{ c.tipo }}
+                            <i class="fa-solid {{ 'fa-arrow-up' if c.tipo == 'Receita' else 'fa-arrow-down' }}"></i>
+                            {{ c.tipo }}
                         </span>
                     </td>
                     <td>
-                        <a href="javascript:void(0)" class="action-btn edit" 
-                           onclick="openEditModal('{{ c.id }}', '{{ c.nome }}', '{{ c.tipo }}')" title="Editar">
+                        {% set qtd = contagem.get(c.nome, 0) %}
+                        <span style="color: {{ 'var(--text-muted)' if qtd == 0 else 'var(--text-main)' }}; font-size: 0.85rem;">
+                            {{ qtd }} lançamento{{ 's' if qtd != 1 }}
+                        </span>
+                    </td>
+                    <td>
+                        <a href="javascript:void(0)" class="action-btn edit"
+                           onclick="openEditModal('{{ c.id }}', {{ c.nome|tojson }}, '{{ c.tipo }}')"
+                           title="Editar">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </a>
-                        <a href="/configuracoes/categoria/delete/{{ c.id }}" class="action-btn delete" onclick="return confirm('Excluir categoria?')" title="Excluir">
+                        <a href="/configuracoes/categoria/delete/{{ c.id }}"
+                           class="action-btn delete"
+                           title="Excluir"
+                           onclick="return confirmDeleteCat({{ c.nome|tojson }}, {{ contagem.get(c.nome, 0) }})">
                             <i class="fa-solid fa-trash-can"></i>
                         </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4">
+                        <div class="empty-state">
+                            <i class="fa-solid fa-tags"></i>
+                            <p>Nenhuma categoria cadastrada.</p>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -60,10 +83,11 @@
     </div>
 </div>
 
+<!-- Modal de Edição -->
 <div id="editModal" class="modal">
     <div class="modal-content">
         <form id="editForm" method="POST" action="" class="modal-form">
-            
+
             <div class="modal-header form-full">
                 <i class="fa-solid fa-pen-to-square"></i> Editar Categoria
             </div>
@@ -105,7 +129,13 @@
         document.getElementById('editModal').style.display = 'none';
     }
 
-    // Fechar ao clicar fora do modal
+    function confirmDeleteCat(nome, qtd) {
+        if (qtd > 0) {
+            return confirm(`Excluir a categoria "${nome}"?\n\nAtenção: ${qtd} lançamento(s) possuem esta categoria e ficarão sem categoria vinculada.`);
+        }
+        return confirm(`Excluir a categoria "${nome}"?`);
+    }
+
     window.onclick = function(event) {
         if (event.target == document.getElementById('editModal')) {
             closeModal();

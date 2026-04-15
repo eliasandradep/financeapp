@@ -31,10 +31,10 @@ body { background: var(--bg-color); color: var(--text-main); display: flex; min-
 
 .sidebar h2 { margin-bottom: 40px; color: var(--accent); text-align: center; }
 
-.nav-item { 
+.nav-item {
     display: flex; align-items: center; gap: 12px;
-    color: var(--text-muted); text-decoration: none; 
-    padding: 12px 15px; border-radius: 8px; margin-bottom: 8px; transition: 0.2s; 
+    color: var(--text-muted); text-decoration: none;
+    padding: 12px 15px; border-radius: 8px; margin-bottom: 8px; transition: 0.2s;
 }
 .nav-item i { width: 20px; text-align: center; }
 .nav-item:hover, .nav-item.active { background: var(--card-hover); color: white; }
@@ -50,6 +50,97 @@ body { background: var(--bg-color); color: var(--text-main); display: flex; min-
 }
 
 h1 { margin-bottom: 30px; font-size: 1.8rem; display: flex; align-items: center; gap: 10px; }
+
+/* PAGE HEADER (título + navegação de período) */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.page-header h1 { margin-bottom: 0; }
+
+/* NAVEGAÇÃO DE MÊS / ANO */
+.month-nav, .year-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 6px 12px;
+}
+
+.month-label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-main);
+    min-width: 130px;
+    text-align: center;
+}
+
+.month-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: 0.2s;
+}
+.month-btn:hover { background: var(--card-hover); color: var(--text-main); }
+
+/* FLASH MESSAGES */
+.flash-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.flash {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: opacity 0.4s ease;
+}
+
+.flash i { flex-shrink: 0; }
+.flash span { flex: 1; }
+
+.flash-success {
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid rgba(34, 197, 94, 0.4);
+    color: #86efac;
+}
+
+.flash-error {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+
+.flash-close {
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0 4px;
+    opacity: 0.7;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.flash-close:hover { opacity: 1; }
 
 /* CARDS E FORMULÁRIOS INLINE */
 .card-box { background: var(--card-bg); padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -86,16 +177,33 @@ tr:hover td { background: var(--card-hover); }
 .action-btn.edit { color: var(--accent); }
 .action-btn.delete { color: var(--danger); }
 
+/* EMPTY STATE */
+.empty-state {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--text-muted);
+}
+.empty-state i {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+.empty-state p {
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+}
+
 /* =========================================
-   MODAL RESPONSIVO (O "PULO DO GATO")
+   MODAL RESPONSIVO
    ========================================= */
 .modal {
-    display: none; /* JS controla a exibição */
+    display: none;
     position: fixed; z-index: 10000;
     left: 0; top: 0; width: 100%; height: 100%;
-    background-color: rgba(0,0,0,0.85); /* Fundo mais escuro */
+    background-color: rgba(0,0,0,0.85);
     align-items: center; justify-content: center;
-    padding: 20px; /* Garante respiro no mobile */
+    padding: 20px;
 }
 
 .modal-content {
@@ -103,70 +211,61 @@ tr:hover td { background: var(--card-hover); }
     padding: 30px;
     border-radius: 16px;
     width: 100%;
-    max-width: 450px; /* MOBILE-FIRST: Formato retrato estreito */
+    max-width: 450px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     border: 1px solid var(--border-color);
-    max-height: calc(100vh - 40px); /* Impede que o modal corte o topo/fundo da tela */
-    overflow-y: auto; /* Permite rolagem INTERNA se o conteúdo for muito alto */
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
 }
 
 .modal-header { margin-bottom: 25px; font-size: 1.4rem; font-weight: bold; color: var(--text-main); display: flex; align-items: center; gap: 10px; }
 
-/* Estrutura do formulário dentro do modal */
 .modal-form { display: flex; flex-direction: column; gap: 15px; }
 
-/* Grupo de Input (Label + Campo) */
 .form-group { display: flex; flex-direction: column; gap: 6px; }
 .form-group label { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; }
 .form-group input, .form-group select { width: 100%; margin-bottom: 0; }
 
-/* Grupo de Checkbox */
 .checkbox-group { flex-direction: row; align-items: center; gap: 10px; padding: 10px 0; }
 .checkbox-group input { width: auto; }
 .checkbox-group label { color: var(--text-main); font-size: 0.9rem; }
 
-/* Botões do Modal */
 .modal .btn-action { background: var(--success); color: white; padding: 14px; border-radius: 8px; font-weight: bold; border: none; cursor: pointer; width: 100%; margin-top: 10px; font-size: 1rem; transition: 0.2s; }
 .modal .btn-action:hover { opacity: 0.9; }
 
 .modal .btn-cancel { background: #334155; color: #cbd5e1; margin-top: 10px; padding: 14px; border-radius: 8px; width: 100%; border: none; cursor: pointer; font-weight: bold; }
 
-/* -----------------------------------------
-   MEDIA QUERY: DESKTOP / WIDESCREEN
-   Ativa o formato "Paisagem" (2 colunas)
-   ----------------------------------------- */
+/* DESKTOP: Modal em grid 2 colunas */
 @media (min-width: 768px) {
     .modal-content {
-        max-width: 800px; /* MODAL FICA LARGO (PAISAGEM) */
-        overflow-y: visible; /* Conteúdo deve caber na altura, removemos rolagem */
+        max-width: 800px;
+        overflow-y: visible;
     }
-    
+
     .modal-form {
         display: grid;
-        grid-template-columns: 1fr 1fr; /* DUAS COLUNAS LADO A LADO */
+        grid-template-columns: 1fr 1fr;
         gap: 20px;
         align-items: start;
     }
-    
-    /* Faz os botões e os campos que devem ocupar a largura total quebrarem o grid */
+
     .modal-header, .form-full, .checkbox-group, .modal-actions {
-        grid-column: span 2; /* Ocupa as duas colunas */
+        grid-column: span 2;
     }
-    
-    /* Agrupa os botões de ação lado a lado no final */
+
     .modal-actions {
         display: flex;
         gap: 15px;
         margin-top: 20px;
     }
-    
+
     .modal .btn-action, .modal .btn-cancel {
         margin-top: 0;
-        flex: 1; /* Botões dividem o espaço igualmente */
+        flex: 1;
     }
 }
 
-/* GRID CONFIGURAÇÕES (Fixo em duas colunas) */
+/* GRID CONFIGURAÇÕES */
 .config-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 30px; align-items: start; }
 
 /* RESPONSIVIDADE SIDEBAR (MOBILE) */
@@ -177,4 +276,6 @@ tr:hover td { background: var(--card-hover); }
     .nav-items { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 10px; width: 100%; }
     .main-content { margin-left: 0; padding: 20px; width: 100%; }
     .submenu-label { display: none; }
+    .config-grid { grid-template-columns: 1fr; }
+    .page-header { flex-direction: column; align-items: flex-start; }
 }

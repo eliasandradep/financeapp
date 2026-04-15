@@ -1,41 +1,171 @@
 {% extends 'base.html' %}
 {% block content %}
-<h1>💸 Lançamentos</h1>
-<div class="form-container">
-    <form method="POST" action="/add">
-        <input name="data" type="date" required value="{{ hoje }}">
-        <input name="descricao" placeholder="Descrição" required>
-        <select name="tipo" id="tipo_select" onchange="updateCats()">
-            <option value="Despesa">Despesa</option>
-            <option value="Receita">Receita</option>
-        </select>
-        <select name="categoria" id="cat_select"></select>
-        <input name="valor" type="number" step="0.01" placeholder="Valor" required>
-        <button type="submit">Salvar</button>
-    </form>
+
+<div class="page-header">
+    <h1><i class="fa-solid fa-file-invoice-dollar"></i> Relatório Anual</h1>
+    <div class="year-nav">
+        <a href="/relatorios?ano={{ ano_atual - 1 }}" class="month-btn" title="Ano anterior">
+            <i class="fa-solid fa-chevron-left"></i>
+        </a>
+        <span class="month-label">{{ ano_atual }}</span>
+        <a href="/relatorios?ano={{ ano_atual + 1 }}" class="month-btn" title="Próximo ano">
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+    </div>
 </div>
 
-<table>
-    <tr><th>Data</th><th>Descrição</th><th>Cat.</th><th>Valor</th><th>Ação</th></tr>
-    {% for d in dados %}
-    <tr>
-        <td>{{ d.data.strftime('%d/%m') }}</td>
-        <td>{{ d.descricao }}</td>
-        <td><span class="tag">{{ d.categoria }}</span></td>
-        <td style="color: {{ '#22c55e' if d.tipo == 'Receita' else '#ef4444' }}">R$ {{ d.valor }}</td>
-        <td><a href="/delete/{{ d.id }}" style="color: #f87171;">Excluir</a></td>
-    </tr>
-    {% endfor %}
-</table>
+<!-- Cards de resumo anual -->
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+    <div class="card-box">
+        <h3><i class="fa-solid fa-arrow-up" style="color: #22c55e;"></i> Total Receitas</h3>
+        <p style="font-size: 1.5rem; font-weight: bold; color: #22c55e; margin-top: 8px;">
+            {{ total_rec | brl }}
+        </p>
+    </div>
+    <div class="card-box">
+        <h3><i class="fa-solid fa-arrow-down" style="color: #ef4444;"></i> Total Despesas</h3>
+        <p style="font-size: 1.5rem; font-weight: bold; color: #ef4444; margin-top: 8px;">
+            {{ total_des | brl }}
+        </p>
+    </div>
+    <div class="card-box">
+        <h3><i class="fa-solid fa-scale-balanced" style="color: #3b82f6;"></i> Saldo do Ano</h3>
+        {% set saldo_ano = total_rec - total_des %}
+        <p style="font-size: 1.5rem; font-weight: bold; color: {{ '#22c55e' if saldo_ano >= 0 else '#ef4444' }}; margin-top: 8px;">
+            {{ saldo_ano | brl }}
+        </p>
+    </div>
+</div>
+
+<!-- Gráfico de barras mensal -->
+<div class="card-box" style="margin-bottom: 30px;">
+    <h3><i class="fa-solid fa-chart-bar"></i> Evolução Mensal {{ ano_atual }}</h3>
+    <div style="position: relative; height: 280px;">
+        <canvas id="chartAnual"></canvas>
+    </div>
+</div>
+
+<!-- Tabela de resumo por mês -->
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>MÊS</th>
+                <th style="color: #22c55e;">RECEITAS</th>
+                <th style="color: #ef4444;">DESPESAS</th>
+                <th>SALDO</th>
+                <th>SITUAÇÃO</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set tem_dados = namespace(value=false) %}
+            {% for r in resumo %}
+            {% if r.receita > 0 or r.despesa > 0 %}
+                {% set tem_dados.value = true %}
+            {% endif %}
+            <tr style="{{ 'opacity: 0.4;' if r.receita == 0 and r.despesa == 0 }}">
+                <td style="font-weight: bold;">{{ r.nome }}</td>
+                <td style="color: #22c55e;">{{ r.receita | brl }}</td>
+                <td style="color: #ef4444;">{{ r.despesa | brl }}</td>
+                <td>
+                    <strong style="color: {{ '#22c55e' if r.saldo >= 0 else '#ef4444' }};">
+                        {{ r.saldo | brl }}
+                    </strong>
+                </td>
+                <td>
+                    {% if r.receita == 0 and r.despesa == 0 %}
+                        <span style="color: var(--text-muted); font-size: 0.8rem;">sem dados</span>
+                    {% elif r.saldo >= 0 %}
+                        <span class="status-badge status-pago">
+                            <i class="fa-solid fa-circle-check"></i> Positivo
+                        </span>
+                    {% else %}
+                        <span class="status-badge status-pendente">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Negativo
+                        </span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+            <!-- Linha de totais -->
+            <tr style="background: #334155; font-weight: bold;">
+                <td>TOTAL</td>
+                <td style="color: #22c55e;">{{ total_rec | brl }}</td>
+                <td style="color: #ef4444;">{{ total_des | brl }}</td>
+                <td>
+                    {% set saldo_ano = total_rec - total_des %}
+                    <strong style="color: {{ '#22c55e' if saldo_ano >= 0 else '#ef4444' }};">
+                        {{ saldo_ano | brl }}
+                    </strong>
+                </td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+{% if not tem_dados.value %}
+<div class="empty-state" style="margin-top: 20px;">
+    <i class="fa-solid fa-inbox"></i>
+    <p>Nenhum lançamento registrado em {{ ano_atual }}.</p>
+</div>
+{% endif %}
 
 <script>
-    const cats = {{ categorias_select|tojson|safe }};
-    function updateCats() {
-        const t = document.getElementById('tipo_select').value;
-        const s = document.getElementById('cat_select');
-        s.innerHTML = '';
-        cats[t].forEach(c => s.options.add(new Option(c, c)));
-    }
-    window.onload = updateCats;
+    const meses = {{ resumo|map(attribute='nome')|list|tojson|safe }};
+    const receitas = {{ resumo|map(attribute='receita')|list|tojson|safe }};
+    const despesas = {{ resumo|map(attribute='despesa')|list|tojson|safe }};
+
+    new Chart(document.getElementById('chartAnual'), {
+        type: 'bar',
+        data: {
+            labels: meses,
+            datasets: [
+                {
+                    label: 'Receitas',
+                    data: receitas,
+                    backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                    borderColor: '#22c55e',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Despesas',
+                    data: despesas,
+                    backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                    borderColor: '#ef4444',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: { color: '#f1f5f9', padding: 16 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const val = ctx.parsed.y;
+                            return ` ${ctx.dataset.label}: R$ ${val.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+                y: {
+                    ticks: {
+                        color: '#94a3b8',
+                        callback: val => 'R$ ' + val.toLocaleString('pt-BR', { minimumFractionDigits: 0 })
+                    },
+                    grid: { color: '#334155' }
+                }
+            }
+        }
+    });
 </script>
 {% endblock %}

@@ -11,19 +11,19 @@
 <body>
     <div class="sidebar">
         <h2><i class="fa-solid fa-wallet"></i> FinanceApp</h2>
-        
+
         <a href="/" class="nav-item {{ 'active' if request.path == '/' }}">
             <i class="fa-solid fa-chart-pie"></i> Dashboard
         </a>
         <a href="/lancamentos" class="nav-item {{ 'active' if request.path == '/lancamentos' }}">
             <i class="fa-solid fa-money-bill-transfer"></i> Lançamentos
         </a>
-        
+
         <div class="submenu-label">Cadastros</div>
         <a href="/configuracoes" class="nav-item {{ 'active' if request.path == '/configuracoes' }}">
             <i class="fa-solid fa-tags"></i> Categorias
         </a>
-        
+
         <div class="submenu-label">Análise</div>
         <a href="/relatorios" class="nav-item {{ 'active' if request.path == '/relatorios' }}">
             <i class="fa-solid fa-file-invoice-dollar"></i> Relatórios
@@ -31,7 +31,31 @@
     </div>
 
     <div class="main-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-container">
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">
+                            <i class="fa-solid {{ 'fa-circle-check' if category == 'success' else 'fa-triangle-exclamation' }}"></i>
+                            <span>{{ message }}</span>
+                            <button class="flash-close" onclick="this.parentElement.remove()" aria-label="Fechar">×</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
         {% block content %}{% endblock %}
     </div>
+
+    <script>
+        // Auto-remove flash messages after 4 seconds
+        setTimeout(() => {
+            document.querySelectorAll('.flash').forEach(el => {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 400);
+            });
+        }, 4000);
+    </script>
 </body>
 </html>
