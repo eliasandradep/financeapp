@@ -142,6 +142,35 @@ h1 { margin-bottom: 30px; font-size: 1.8rem; display: flex; align-items: center;
 }
 .flash-close:hover { opacity: 1; }
 
+/* CAMPO DE VALOR COM PREFIXO R$ */
+.valor-wrap {
+    display: flex;
+    align-items: center;
+    background: #0f172a;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0 10px;
+    transition: border-color 0.2s;
+}
+.valor-wrap:focus-within { border-color: var(--accent); }
+.valor-wrap > span {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-right: 5px;
+    user-select: none;
+}
+.valor-wrap input[type="text"] {
+    background: transparent;
+    border: none;
+    padding: 12px 0;
+    color: white;
+    text-align: right;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    width: 100%;
+}
+.valor-wrap input[type="text"]:focus { outline: none; border: none; box-shadow: none; }
+
 /* CARDS E FORMULÁRIOS INLINE */
 .card-box { background: var(--card-bg); padding: 25px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
 .card-box h3 { color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; margin-bottom: 15px; letter-spacing: 0.5px; }
