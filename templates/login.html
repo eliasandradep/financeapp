@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinanceApp — Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-page">
+
+    <div class="login-container">
+        <div class="login-card">
+
+            <div class="login-logo">
+                <i class="fa-solid fa-wallet"></i>
+                <h1>FinanceApp</h1>
+                <p>Controle financeiro pessoal</p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}" style="margin-bottom: 16px;">
+                            <i class="fa-solid {{ 'fa-circle-check' if category == 'success' else 'fa-triangle-exclamation' }}"></i>
+                            <span>{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="/login" autocomplete="on">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label>Usuário</label>
+                    <input type="text" name="username" placeholder="Ex: Admin"
+                           required autofocus autocomplete="username" style="width: 100%;">
+                </div>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label>Senha</label>
+                    <div style="position: relative;">
+                        <input type="password" name="password" id="pwd_field"
+                               placeholder="••••••••" required
+                               autocomplete="current-password"
+                               style="width: 100%; padding-right: 46px;">
+                        <button type="button" onclick="togglePwd()"
+                                style="position:absolute; right:10px; top:50%; transform:translateY(-50%);
+                                       background:none; border:none; color:var(--text-muted);
+                                       cursor:pointer; padding:4px; font-size:1rem;">
+                            <i class="fa-solid fa-eye" id="eye_icon"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <label style="display:flex; align-items:center; gap:8px; margin-bottom:22px;
+                              color:var(--text-muted); font-size:0.85rem; cursor:pointer;">
+                    <input type="checkbox" name="remember" style="width:auto; margin:0;">
+                    Manter conectado
+                </label>
+
+                <button type="submit" style="width:100%; justify-content:center; font-size:1rem;">
+                    <i class="fa-solid fa-right-to-bracket"></i> Entrar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function togglePwd() {
+            const f = document.getElementById('pwd_field');
+            const i = document.getElementById('eye_icon');
+            if (f.type === 'password') {
+                f.type = 'text';
+                i.className = 'fa-solid fa-eye-slash';
+            } else {
+                f.type = 'password';
+                i.className = 'fa-solid fa-eye';
+            }
+        }
+    </script>
+</body>
+</html>

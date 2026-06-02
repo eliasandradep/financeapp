@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1><i class="fa-solid fa-key"></i> Alterar Senha</h1>
+
+<div style="max-width: 480px;">
+    <div class="card-box">
+
+        {% if current_user.primeiro_acesso %}
+        <div class="flash flash-error" style="margin-bottom: 20px;">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>Este é seu primeiro acesso. Defina uma nova senha para continuar.</span>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="/alterar-senha">
+
+            {% if not current_user.primeiro_acesso %}
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label>Senha atual</label>
+                <div style="position: relative;">
+                    <input type="password" name="senha_atual" id="f_atual"
+                           required placeholder="••••••••" style="width:100%; padding-right:46px;">
+                    <button type="button" onclick="toggle('f_atual','eye_atual')"
+                            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);
+                                   background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;">
+                        <i class="fa-solid fa-eye" id="eye_atual"></i>
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label>Nova senha <small style="color:var(--text-muted);">(mínimo 8 caracteres)</small></label>
+                <div style="position: relative;">
+                    <input type="password" name="nova_senha" id="f_nova"
+                           required minlength="8" placeholder="••••••••"
+                           style="width:100%; padding-right:46px;"
+                           oninput="checkStrength(this.value)">
+                    <button type="button" onclick="toggle('f_nova','eye_nova')"
+                            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);
+                                   background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;">
+                        <i class="fa-solid fa-eye" id="eye_nova"></i>
+                    </button>
+                </div>
+                <div id="strength_bar" style="margin-top:6px; height:4px; border-radius:4px; background:var(--border-color); overflow:hidden;">
+                    <div id="strength_fill" style="height:100%; width:0; transition:0.3s; border-radius:4px;"></div>
+                </div>
+                <small id="strength_label" style="color:var(--text-muted); font-size:0.75rem;"></small>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label>Confirmar nova senha</label>
+                <input type="password" name="confirmar_senha" id="f_confirma"
+                       required minlength="8" placeholder="••••••••" style="width:100%;"
+                       oninput="checkMatch()">
+                <small id="match_label" style="font-size:0.75rem;"></small>
+            </div>
+
+            <div style="display:flex; gap:12px;">
+                <button type="submit" style="flex:1; justify-content:center;">
+                    <i class="fa-solid fa-floppy-disk"></i> Salvar nova senha
+                </button>
+                {% if not current_user.primeiro_acesso %}
+                <a href="{{ url_for('index') }}"
+                   style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;
+                          background:#334155; color:#cbd5e1; border-radius:8px; text-decoration:none;
+                          font-weight:bold; padding:12px;">
+                    Cancelar
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function toggle(fieldId, iconId) {
+        const f = document.getElementById(fieldId);
+        const i = document.getElementById(iconId);
+        f.type = f.type === 'password' ? 'text' : 'password';
+        i.className = f.type === 'password' ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash';
+    }
+
+    function checkStrength(val) {
+        const fill  = document.getElementById('strength_fill');
+        const label = document.getElementById('strength_label');
+        let score = 0;
+        if (val.length >= 8)  score++;
+        if (val.length >= 12) score++;
+        if (/[A-Z]/.test(val)) score++;
+        if (/[0-9]/.test(val)) score++;
+        if (/[^A-Za-z0-9]/.test(val)) score++;
+
+        const levels = [
+            { pct: '20%', color: '#ef4444', text: 'Muito fraca' },
+            { pct: '40%', color: '#f97316', text: 'Fraca' },
+            { pct: '60%', color: '#f59e0b', text: 'Média' },
+            { pct: '80%', color: '#84cc16', text: 'Forte' },
+            { pct: '100%',color: '#22c55e', text: 'Muito forte' },
+        ];
+        const lvl = levels[Math.min(score, 4)];
+        fill.style.width  = val.length ? lvl.pct : '0';
+        fill.style.background = lvl.color;
+        label.textContent = val.length ? lvl.text : '';
+        label.style.color = lvl.color;
+    }
+
+    function checkMatch() {
+        const nova     = document.getElementById('f_nova').value;
+        const confirma = document.getElementById('f_confirma').value;
+        const label    = document.getElementById('match_label');
+        if (!confirma) { label.textContent = ''; return; }
+        if (nova === confirma) {
+            label.textContent = '✓ Senhas coincidem';
+            label.style.color = '#22c55e';
+        } else {
+            label.textContent = '✗ Senhas não coincidem';
+            label.style.color = '#ef4444';
+        }
+    }
+</script>
+{% endblock %}

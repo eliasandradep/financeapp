@@ -29,7 +29,122 @@ body { background: var(--bg-color); color: var(--text-main); display: flex; min-
     z-index: 100;
 }
 
-.sidebar h2 { margin-bottom: 40px; color: var(--accent); text-align: center; }
+.sidebar h2 { margin-bottom: 16px; color: var(--accent); text-align: center; }
+
+/* SELETOR DE CONTA */
+.account-switcher {
+    background: rgba(59,130,246,0.08);
+    border: 1px solid rgba(59,130,246,0.25);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    position: relative;
+    cursor: pointer;
+}
+
+.account-switcher-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    user-select: none;
+}
+
+.account-switcher-header #acct-chevron {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    flex-shrink: 0;
+    transition: transform 0.2s;
+}
+
+.account-label {
+    display: block;
+    font-size: 0.68rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 2px;
+}
+
+.account-name {
+    display: block;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-main);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+}
+
+.account-type {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.account-dropdown {
+    position: absolute;
+    left: 0; right: 0; top: calc(100% + 4px);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 6px;
+    z-index: 500;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
+.account-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.82rem;
+    transition: 0.15s;
+}
+
+.account-dropdown-item i { flex-shrink: 0; width: 14px; }
+.account-dropdown-item span { flex: 1; }
+.account-dropdown-item small { color: #475569; font-size: 0.72rem; }
+.account-dropdown-item:hover { background: var(--card-hover); color: var(--text-main); }
+
+.account-manage-link { color: var(--accent) !important; }
+.account-manage-link:hover { background: rgba(59,130,246,0.1) !important; }
+
+.account-dropdown-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 4px 0;
+}
+
+/* CONTA ATIVA NA TABELA */
+.conta-ativa-row td { background: rgba(59,130,246,0.06); }
+.badge-ativa {
+    font-size: 0.68rem;
+    background: rgba(59,130,246,0.2);
+    color: var(--accent);
+    padding: 2px 7px;
+    border-radius: 20px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+/* BADGES DE ROLE (Admin / Usuário) */
+.role-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.role-admin { background: rgba(239,68,68,0.15); color: #fca5a5; }
+.role-user  { background: rgba(148,163,184,0.15); color: #94a3b8; }
 
 .nav-item {
     display: flex; align-items: center; gap: 12px;
@@ -296,6 +411,105 @@ tr:hover td { background: var(--card-hover); }
 
 /* GRID CONFIGURAÇÕES */
 .config-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 30px; align-items: start; }
+
+/* USUÁRIO NO SIDEBAR */
+.sidebar-user {
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.sidebar-user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+
+.sidebar-user-info > i {
+    font-size: 1.6rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.sidebar-username {
+    display: block;
+    font-weight: 600;
+    color: var(--text-main);
+    font-size: 0.9rem;
+    line-height: 1.2;
+}
+
+.sidebar-role {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.sidebar-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 8px;
+    border-radius: 8px;
+    background: #334155;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: 0.2s;
+}
+
+.sidebar-action-btn:hover { background: var(--card-hover); color: var(--text-main); }
+.sidebar-logout:hover { background: rgba(239,68,68,0.2); color: #f87171; }
+
+/* LOGIN PAGE */
+.login-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--bg-color);
+}
+
+.login-container {
+    width: 100%;
+    max-width: 420px;
+    padding: 20px;
+}
+
+.login-card {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 40px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+}
+
+.login-logo {
+    text-align: center;
+    margin-bottom: 32px;
+}
+
+.login-logo > i {
+    font-size: 3rem;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 12px;
+}
+
+.login-logo h1 {
+    font-size: 1.8rem;
+    margin-bottom: 4px;
+    display: block;
+}
+
+.login-logo p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
 
 /* RESPONSIVIDADE SIDEBAR (MOBILE) */
 @media (max-width: 991px) {

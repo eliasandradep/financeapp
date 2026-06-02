@@ -9,53 +9,146 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <div class="sidebar">
-        <h2><i class="fa-solid fa-wallet"></i> FinanceApp</h2>
+<div class="sidebar">
+    <h2><i class="fa-solid fa-wallet"></i> FinanceApp</h2>
 
-        <a href="/" class="nav-item {{ 'active' if request.path == '/' }}">
-            <i class="fa-solid fa-chart-pie"></i> Dashboard
-        </a>
-        <a href="/lancamentos" class="nav-item {{ 'active' if request.path == '/lancamentos' }}">
-            <i class="fa-solid fa-money-bill-transfer"></i> Lançamentos
-        </a>
-
-        <div class="submenu-label">Cadastros</div>
-        <a href="/configuracoes" class="nav-item {{ 'active' if request.path == '/configuracoes' }}">
-            <i class="fa-solid fa-tags"></i> Categorias
-        </a>
-
-        <div class="submenu-label">Análise</div>
-        <a href="/relatorios" class="nav-item {{ 'active' if request.path == '/relatorios' }}">
-            <i class="fa-solid fa-file-invoice-dollar"></i> Relatórios
-        </a>
-    </div>
-
-    <div class="main-content">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-container">
-                    {% for category, message in messages %}
-                        <div class="flash flash-{{ category }}">
-                            <i class="fa-solid {{ 'fa-circle-check' if category == 'success' else 'fa-triangle-exclamation' }}"></i>
-                            <span>{{ message }}</span>
-                            <button class="flash-close" onclick="this.parentElement.remove()" aria-label="Fechar">×</button>
-                        </div>
-                    {% endfor %}
-                </div>
+    <!-- Seletor de conta -->
+    {% if conta_atual %}
+    <div class="account-switcher" id="acct-switcher">
+        <div class="account-switcher-header" onclick="toggleAcctMenu()" title="Trocar conta">
+            <div>
+                <span class="account-label">Conta ativa</span>
+                <span class="account-name">{{ conta_atual.nome }}</span>
+                <span class="account-type">{{ conta_atual.tipo }}{% if conta_atual.banco %} · {{ conta_atual.banco }}{% endif %}</span>
+            </div>
+            {% if user_contas|length > 1 %}
+            <i class="fa-solid fa-chevron-down" id="acct-chevron"></i>
             {% endif %}
-        {% endwith %}
-
-        {% block content %}{% endblock %}
+        </div>
+        {% if user_contas|length > 1 %}
+        <div class="account-dropdown" id="acct-dropdown" style="display:none;">
+            {% for c in user_contas %}
+            {% if c.id != conta_atual.id %}
+            <a href="/contas/selecionar/{{ c.id }}" class="account-dropdown-item">
+                <i class="fa-solid fa-building-columns"></i>
+                <span>{{ c.nome }}</span>
+                <small>{{ c.tipo }}</small>
+            </a>
+            {% endif %}
+            {% endfor %}
+            <div class="account-dropdown-divider"></div>
+            <a href="/contas" class="account-dropdown-item account-manage-link">
+                <i class="fa-solid fa-gear"></i> Gerenciar contas
+            </a>
+        </div>
+        {% endif %}
     </div>
+    {% elif current_user.is_authenticated %}
+    <a href="/contas" class="nav-item" style="color: var(--warning); margin-bottom: 10px;">
+        <i class="fa-solid fa-plus-circle"></i> Criar conta
+    </a>
+    {% endif %}
 
-    <script>
-        // Auto-remove flash messages after 4 seconds
-        setTimeout(() => {
-            document.querySelectorAll('.flash').forEach(el => {
-                el.style.opacity = '0';
-                setTimeout(() => el.remove(), 400);
-            });
-        }, 4000);
-    </script>
+    <!-- Navegação principal -->
+    <a href="/" class="nav-item {{ 'active' if request.path == '/' }}">
+        <i class="fa-solid fa-chart-pie"></i> Dashboard
+    </a>
+    <a href="/lancamentos" class="nav-item {{ 'active' if request.path == '/lancamentos' }}">
+        <i class="fa-solid fa-money-bill-transfer"></i> Lançamentos
+    </a>
+    <a href="/importar" class="nav-item {{ 'active' if request.path == '/importar' }}">
+        <i class="fa-solid fa-file-import"></i> Importar Extrato
+    </a>
+
+    <div class="submenu-label">Cadastros</div>
+    <a href="/contas" class="nav-item {{ 'active' if request.path == '/contas' }}">
+        <i class="fa-solid fa-building-columns"></i> Minhas Contas
+    </a>
+    <a href="/configuracoes" class="nav-item {{ 'active' if request.path == '/configuracoes' }}">
+        <i class="fa-solid fa-tags"></i> Categorias
+    </a>
+
+    <div class="submenu-label">Análise</div>
+    <a href="/relatorios" class="nav-item {{ 'active' if request.path == '/relatorios' }}">
+        <i class="fa-solid fa-file-invoice-dollar"></i> Relatórios
+    </a>
+
+    {% if current_user.is_admin %}
+    <div class="submenu-label">Administração</div>
+    <a href="/admin/usuarios" class="nav-item {{ 'active' if request.path.startswith('/admin') }}">
+        <i class="fa-solid fa-users-gear"></i> Usuários
+    </a>
+    {% endif %}
+
+    <!-- Rodapé do usuário -->
+    <div class="sidebar-user">
+        <div class="sidebar-user-info">
+            <i class="fa-solid fa-circle-user"></i>
+            <div>
+                <span class="sidebar-username">{{ current_user.username }}</span>
+                {% if current_user.is_admin %}
+                <span class="sidebar-role">Administrador</span>
+                {% endif %}
+            </div>
+        </div>
+        <div style="display:flex; gap:6px; margin-top:8px;">
+            <a href="/alterar-senha" class="sidebar-action-btn" title="Alterar senha">
+                <i class="fa-solid fa-key"></i>
+            </a>
+            <a href="/logout" class="sidebar-action-btn sidebar-logout" title="Sair">
+                <i class="fa-solid fa-right-from-bracket"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="main-content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="flash-container">
+            {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">
+                <i class="fa-solid {{ 'fa-circle-check' if category == 'success' else 'fa-triangle-exclamation' }}"></i>
+                <span>{{ message }}</span>
+                <button class="flash-close" onclick="this.parentElement.remove()">×</button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+</div>
+
+<script>
+    // Flash auto-remove
+    setTimeout(() => {
+        document.querySelectorAll('.flash').forEach(el => {
+            el.style.opacity = '0';
+            setTimeout(() => el.remove(), 400);
+        });
+    }, 4000);
+
+    // Account dropdown toggle
+    function toggleAcctMenu() {
+        const dd = document.getElementById('acct-dropdown');
+        const ch = document.getElementById('acct-chevron');
+        if (!dd) return;
+        const open = dd.style.display !== 'none';
+        dd.style.display = open ? 'none' : 'block';
+        if (ch) ch.style.transform = open ? '' : 'rotate(180deg)';
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', e => {
+        const sw = document.getElementById('acct-switcher');
+        const dd = document.getElementById('acct-dropdown');
+        if (sw && dd && !sw.contains(e.target)) {
+            dd.style.display = 'none';
+            const ch = document.getElementById('acct-chevron');
+            if (ch) ch.style.transform = '';
+        }
+    });
+</script>
 </body>
 </html>

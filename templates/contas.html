@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1><i class="fa-solid fa-building-columns"></i> Minhas Contas</h1>
+
+<div class="config-grid">
+
+    <!-- Formulário de nova conta -->
+    <div class="card-box">
+        <h3><i class="fa-solid fa-plus-circle"></i> Nova Conta</h3>
+        <p style="color:var(--text-muted); font-size:0.88rem; margin-bottom:18px;">
+            Cadastre contas bancárias, cartões ou carteiras para gerenciar separadamente.
+        </p>
+        <form method="POST" action="/contas/add">
+            <div class="form-group" style="margin-bottom:12px;">
+                <label>Nome da conta</label>
+                <input name="nome" placeholder="Ex: Santander, C6 Bank, Carteira…" required style="width:100%;">
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+                <label>Tipo</label>
+                <select name="tipo" style="width:100%;">
+                    <option value="Corrente">Conta Corrente</option>
+                    <option value="Poupança">Conta Poupança</option>
+                    <option value="Cartão">Cartão de Crédito</option>
+                    <option value="Investimentos">Investimentos</option>
+                    <option value="Carteira">Carteira (dinheiro)</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+                <label>Banco / Instituição <small style="color:var(--text-muted);">(opcional)</small></label>
+                <input name="banco" placeholder="Ex: Santander, Nubank…" style="width:100%;">
+            </div>
+            <div class="form-group" style="margin-bottom:18px;">
+                <label>Descrição <small style="color:var(--text-muted);">(opcional)</small></label>
+                <input name="descricao" placeholder="Ex: conta do dia a dia…" style="width:100%;">
+            </div>
+            <button type="submit" style="width:100%;"><i class="fa-solid fa-plus"></i> Cadastrar</button>
+        </form>
+    </div>
+
+    <!-- Tabela de contas -->
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>CONTA</th>
+                    <th>TIPO</th>
+                    <th>BANCO</th>
+                    <th>LANÇAMENTOS</th>
+                    <th>AÇÕES</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in contas %}
+                <tr class="{{ 'conta-ativa-row' if conta_atual and c.id == conta_atual.id }}">
+                    <td>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <i class="fa-solid {{ conta_tipo_icon(c.tipo) }}"
+                               style="color:var(--accent); width:16px; text-align:center;"></i>
+                            <div>
+                                <strong>{{ c.nome }}</strong>
+                                {% if conta_atual and c.id == conta_atual.id %}
+                                <span class="badge-ativa">ativa</span>
+                                {% endif %}
+                                {% if c.descricao %}
+                                <div style="font-size:0.78rem; color:var(--text-muted);">{{ c.descricao }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td style="color:var(--text-muted); font-size:0.85rem;">{{ c.tipo }}</td>
+                    <td style="color:var(--text-muted); font-size:0.85rem;">{{ c.banco or '—' }}</td>
+                    <td style="font-size:0.85rem;">{{ contagem.get(c.id, 0) }} lançamento{{ 's' if contagem.get(c.id, 0) != 1 }}</td>
+                    <td>
+                        {% if not (conta_atual and c.id == conta_atual.id) %}
+                        <a href="/contas/selecionar/{{ c.id }}" class="action-btn"
+                           style="color:var(--success);" title="Usar esta conta">
+                            <i class="fa-solid fa-circle-check"></i>
+                        </a>
+                        {% endif %}
+                        <a href="javascript:void(0)" class="action-btn edit" title="Editar"
+                           onclick="openEditConta('{{ c.id }}', {{ c.nome|tojson }}, '{{ c.tipo }}', {{ (c.banco or '')|tojson }}, {{ (c.descricao or '')|tojson }})">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </a>
+                        <a href="/contas/delete/{{ c.id }}" class="action-btn delete" title="Excluir"
+                           onclick="return confirmDeleteConta({{ c.nome|tojson }}, {{ contagem.get(c.id, 0) }})">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5">
+                        <div class="empty-state">
+                            <i class="fa-solid fa-building-columns"></i>
+                            <p>Nenhuma conta cadastrada ainda.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal de Edição -->
+<div id="editContaModal" class="modal">
+    <div class="modal-content">
+        <form id="editContaForm" method="POST" action="" class="modal-form">
+            <div class="modal-header form-full">
+                <i class="fa-solid fa-pen-to-square"></i> Editar Conta
+            </div>
+            <div class="form-group">
+                <label>Nome</label>
+                <input type="text" name="nome" id="ec_nome" required>
+            </div>
+            <div class="form-group">
+                <label>Tipo</label>
+                <select name="tipo" id="ec_tipo">
+                    <option value="Corrente">Conta Corrente</option>
+                    <option value="Poupança">Conta Poupança</option>
+                    <option value="Cartão">Cartão de Crédito</option>
+                    <option value="Investimentos">Investimentos</option>
+                    <option value="Carteira">Carteira (dinheiro)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Banco</label>
+                <input type="text" name="banco" id="ec_banco" placeholder="Opcional">
+            </div>
+            <div class="form-group">
+                <label>Descrição</label>
+                <input type="text" name="descricao" id="ec_desc" placeholder="Opcional">
+            </div>
+            <div class="modal-actions form-full">
+                <button type="submit" class="btn-action"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+                <button type="button" class="btn-cancel" onclick="closeEditConta()">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditConta(id, nome, tipo, banco, desc) {
+        document.getElementById('editContaForm').action = '/contas/edit/' + id;
+        document.getElementById('ec_nome').value = nome;
+        document.getElementById('ec_tipo').value = tipo;
+        document.getElementById('ec_banco').value = banco;
+        document.getElementById('ec_desc').value = desc;
+        document.getElementById('editContaModal').style.display = 'flex';
+    }
+    function closeEditConta() {
+        document.getElementById('editContaModal').style.display = 'none';
+    }
+    function confirmDeleteConta(nome, qtd) {
+        const msg = qtd > 0
+            ? `Excluir a conta "${nome}"?\n\nATENÇÃO: ${qtd} lançamento(s) serão excluídos permanentemente.`
+            : `Excluir a conta "${nome}"?`;
+        return confirm(msg);
+    }
+    window.onclick = e => {
+        if (e.target == document.getElementById('editContaModal')) closeEditConta();
+    };
+</script>
+{% endblock %}

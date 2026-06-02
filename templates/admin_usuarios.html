@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1><i class="fa-solid fa-users-gear"></i> Gerenciar Usuários</h1>
+
+<div class="config-grid">
+
+    <!-- Formulário de novo usuário -->
+    <div class="card-box">
+        <h3><i class="fa-solid fa-user-plus"></i> Novo Usuário</h3>
+        <p style="color:var(--text-muted); font-size:0.88rem; margin-bottom:18px;">
+            O usuário precisará alterar a senha no primeiro acesso.
+        </p>
+        <form method="POST" action="/admin/usuarios/add">
+            <div class="form-group" style="margin-bottom:12px;">
+                <label>Nome de usuário</label>
+                <input name="username" placeholder="Ex: joao.silva" required style="width:100%;">
+            </div>
+            <div class="form-group" style="margin-bottom:12px;">
+                <label>Senha inicial <small style="color:var(--text-muted);">(mín. 8 caracteres)</small></label>
+                <input type="password" name="password" minlength="8" required style="width:100%;" placeholder="••••••••">
+            </div>
+            <div class="form-group checkbox-group" style="margin-bottom:18px; flex-direction:row; align-items:center; gap:10px;">
+                <input type="checkbox" name="is_admin" id="new_is_admin" style="width:auto;">
+                <label for="new_is_admin" style="color:var(--text-main);">Administrador</label>
+            </div>
+            <button type="submit" style="width:100%;"><i class="fa-solid fa-user-plus"></i> Criar Usuário</button>
+        </form>
+    </div>
+
+    <!-- Tabela de usuários -->
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>USUÁRIO</th>
+                    <th>FUNÇÃO</th>
+                    <th>STATUS</th>
+                    <th>CONTAS</th>
+                    <th>AÇÕES</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in usuarios %}
+                <tr>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <i class="fa-solid fa-circle-user" style="font-size:1.4rem; color:var(--text-muted);"></i>
+                            <strong>{{ u.username }}</strong>
+                            {% if u.id == current_user.id %}
+                            <span style="font-size:0.72rem; background:rgba(59,130,246,0.2); color:var(--accent);
+                                         padding:2px 8px; border-radius:20px;">você</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td>
+                        {% if u.is_admin %}
+                        <span class="role-badge role-admin"><i class="fa-solid fa-shield-halved"></i> Admin</span>
+                        {% else %}
+                        <span class="role-badge role-user"><i class="fa-solid fa-user"></i> Usuário</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if u.ativo %}
+                        <span class="status-badge status-pago"><i class="fa-solid fa-circle-check"></i> Ativo</span>
+                        {% else %}
+                        <span class="status-badge" style="background:#334155; color:#94a3b8;">
+                            <i class="fa-solid fa-ban"></i> Inativo
+                        </span>
+                        {% endif %}
+                        {% if u.primeiro_acesso %}
+                        <span style="font-size:0.7rem; color:var(--warning); display:block; margin-top:4px;">
+                            <i class="fa-solid fa-key"></i> Senha provisória
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:0.85rem; color:var(--text-muted);">
+                        {{ n_contas.get(u.id, 0) }} conta{{ 's' if n_contas.get(u.id, 0) != 1 }}
+                    </td>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
+                            <!-- Editar -->
+                            <a href="javascript:void(0)" class="action-btn edit" title="Editar"
+                               onclick="openEditUsuario('{{ u.id }}', {{ u.username|tojson }}, {{ u.is_admin|lower }})">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </a>
+                            <!-- Reset senha -->
+                            <a href="javascript:void(0)" class="action-btn" title="Redefinir senha"
+                               style="color:var(--warning);"
+                               onclick="openResetSenha('{{ u.id }}', {{ u.username|tojson }})">
+                                <i class="fa-solid fa-key"></i>
+                            </a>
+                            {% if u.id != current_user.id %}
+                            <!-- Ativar/Desativar -->
+                            <a href="/admin/usuarios/toggle/{{ u.id }}" class="action-btn" title="{{ 'Desativar' if u.ativo else 'Ativar' }}"
+                               style="color:{{ '#94a3b8' if u.ativo else '#22c55e' }}"
+                               onclick="return confirm('{{ 'Desativar' if u.ativo else 'Ativar' }} o usuário {{ u.username }}?')">
+                                <i class="fa-solid {{ 'fa-user-slash' if u.ativo else 'fa-user-check' }}"></i>
+                            </a>
+                            <!-- Excluir -->
+                            <a href="/admin/usuarios/delete/{{ u.id }}" class="action-btn delete" title="Excluir"
+                               onclick="return confirm('Excluir o usuário {{ u.username|e }} e TODOS os seus dados?\n\nEsta ação é irreversível.')">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Modal Editar Usuário -->
+<div id="editUsuarioModal" class="modal">
+    <div class="modal-content">
+        <form id="editUsuarioForm" method="POST" action="" class="modal-form">
+            <div class="modal-header form-full">
+                <i class="fa-solid fa-pen-to-square"></i> Editar Usuário
+            </div>
+            <div class="form-group form-full">
+                <label>Nome de usuário</label>
+                <input type="text" name="username" id="eu_username" required>
+            </div>
+            <div class="form-group checkbox-group form-full" style="flex-direction:row; align-items:center; gap:10px; padding:10px 0;">
+                <input type="checkbox" name="is_admin" id="eu_is_admin" style="width:auto;">
+                <label for="eu_is_admin" style="color:var(--text-main);">Administrador</label>
+            </div>
+            <div class="modal-actions form-full">
+                <button type="submit" class="btn-action"><i class="fa-solid fa-floppy-disk"></i> Salvar</button>
+                <button type="button" class="btn-cancel" onclick="closeEditUsuario()">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Reset Senha -->
+<div id="resetSenhaModal" class="modal">
+    <div class="modal-content">
+        <form id="resetSenhaForm" method="POST" action="" class="modal-form">
+            <div class="modal-header form-full">
+                <i class="fa-solid fa-key"></i> Redefinir Senha — <span id="rs_username"></span>
+            </div>
+            <div class="form-group form-full">
+                <label>Nova senha <small style="color:var(--text-muted);">(mín. 8 caracteres)</small></label>
+                <input type="password" name="nova_senha" id="rs_senha" minlength="8"
+                       required placeholder="••••••••" style="width:100%;">
+            </div>
+            <p style="font-size:0.82rem; color:var(--warning); grid-column:span 2;">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                O usuário precisará alterar a senha no próximo acesso.
+            </p>
+            <div class="modal-actions form-full">
+                <button type="submit" class="btn-action" style="background:var(--warning); color:#000;">
+                    <i class="fa-solid fa-key"></i> Redefinir
+                </button>
+                <button type="button" class="btn-cancel" onclick="closeResetSenha()">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openEditUsuario(id, username, isAdmin) {
+        document.getElementById('editUsuarioForm').action = '/admin/usuarios/edit/' + id;
+        document.getElementById('eu_username').value = username;
+        document.getElementById('eu_is_admin').checked = isAdmin;
+        document.getElementById('editUsuarioModal').style.display = 'flex';
+    }
+    function closeEditUsuario() {
+        document.getElementById('editUsuarioModal').style.display = 'none';
+    }
+
+    function openResetSenha(id, username) {
+        document.getElementById('resetSenhaForm').action = '/admin/usuarios/reset-senha/' + id;
+        document.getElementById('rs_username').textContent = username;
+        document.getElementById('rs_senha').value = '';
+        document.getElementById('resetSenhaModal').style.display = 'flex';
+    }
+    function closeResetSenha() {
+        document.getElementById('resetSenhaModal').style.display = 'none';
+    }
+
+    window.onclick = e => {
+        if (e.target == document.getElementById('editUsuarioModal')) closeEditUsuario();
+        if (e.target == document.getElementById('resetSenhaModal'))  closeResetSenha();
+    };
+</script>
+{% endblock %}

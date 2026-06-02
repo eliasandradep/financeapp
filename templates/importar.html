@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<h1><i class="fa-solid fa-file-import"></i> Importar Extrato</h1>
+
+{% if not transacoes %}
+<!-- ─── STEP 1: UPLOAD ─────────────────────────────────── -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: start;">
+
+    <div class="card-box">
+        <h3><i class="fa-solid fa-upload"></i> Selecionar Arquivo</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
+            Exporte o extrato pelo app ou internet banking do seu banco e envie aqui.
+            Formatos aceitos: <strong>OFX, QFX, CSV</strong>.
+        </p>
+
+        <form method="POST" action="/importar" enctype="multipart/form-data">
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label>Arquivo do extrato</label>
+                <input type="file" name="arquivo" accept=".ofx,.qfx,.csv,.txt" required style="width: 100%;">
+            </div>
+            <button type="submit" style="width: 100%;">
+                <i class="fa-solid fa-magnifying-glass"></i> Analisar Arquivo
+            </button>
+        </form>
+    </div>
+
+    <div class="card-box">
+        <h3><i class="fa-solid fa-circle-info"></i> Como exportar o extrato</h3>
+        <div style="display: flex; flex-direction: column; gap: 18px;">
+            <div>
+                <p style="font-weight: 600; color: var(--text-main); margin-bottom: 4px;">
+                    <i class="fa-solid fa-building-columns" style="color: #f59e0b; width:16px;"></i> C6 Bank
+                </p>
+                <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5;">
+                    App C6 → <strong>Extrato</strong> → ícone de compartilhar → <strong>Exportar OFX</strong>
+                </p>
+            </div>
+            <div>
+                <p style="font-weight: 600; color: var(--text-main); margin-bottom: 4px;">
+                    <i class="fa-solid fa-building-columns" style="color: #ef4444; width:16px;"></i> Santander
+                </p>
+                <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5;">
+                    Internet Banking → <strong>Extrato</strong> → selecione o período → <strong>Exportar → OFX</strong>
+                    <br><small>ou App Santander → Extrato → Compartilhar → OFX</small>
+                </p>
+            </div>
+            <div>
+                <p style="font-weight: 600; color: var(--text-main); margin-bottom: 4px;">
+                    <i class="fa-solid fa-building-columns" style="color: var(--accent); width:16px;"></i> Outros bancos
+                </p>
+                <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5;">
+                    Itaú, Bradesco, Nubank, Inter e a maioria dos bancos brasileiros
+                    suportam exportação OFX. CSV também é aceito se tiver colunas de data e valor.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- ─── STEP 2: PREVIEW + CONFIRMAR ───────────────────── -->
+<form method="POST" action="/importar/confirmar">
+    <textarea name="dados_json" style="display:none">{{ transacoes|tojson }}</textarea>
+
+    <!-- Barra de ação -->
+    <div class="card-box" style="margin-bottom: 20px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+            <div>
+                <p style="font-weight:600; color:var(--text-main); margin-bottom:4px;">
+                    <i class="fa-solid fa-file-lines"></i> {{ arquivo_nome }}
+                </p>
+                <p style="color:var(--text-muted); font-size:0.85rem;">
+                    <span id="count_sel">{{ transacoes|length }}</span> de {{ transacoes|length }}
+                    transação(ões) selecionada(s).
+                    Confirme as categorias antes de importar — todos são marcados como <strong>Quitado</strong>.
+                </p>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <a href="/importar"
+                   style="padding:10px 18px; border-radius:8px; background:#334155; color:#cbd5e1;
+                          text-decoration:none; display:flex; align-items:center; gap:6px; font-weight:600;">
+                    <i class="fa-solid fa-arrow-left"></i> Novo arquivo
+                </a>
+                <button type="submit" style="padding:10px 18px;">
+                    <i class="fa-solid fa-file-import"></i> Importar selecionados
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabela de preview -->
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:42px;">
+                        <input type="checkbox" id="sel_all" checked title="Marcar/desmarcar todos"
+                               onchange="toggleAll(this)">
+                    </th>
+                    <th>DATA</th>
+                    <th>DESCRIÇÃO</th>
+                    <th>TIPO</th>
+                    <th style="text-align:right;">VALOR</th>
+                    <th>CATEGORIA</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in transacoes %}
+                <tr id="row_{{ loop.index0 }}">
+                    <td>
+                        <input type="checkbox" name="importar_{{ loop.index0 }}" checked
+                               class="row-check" onchange="updateCount()">
+                    </td>
+                    <td style="white-space:nowrap;">{{ t.data | dmy }}</td>
+                    <td style="font-size:0.88rem; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+                        title="{{ t.descricao }}">
+                        {{ t.descricao }}
+                    </td>
+                    <td>
+                        <select name="tipo_{{ loop.index0 }}"
+                                class="tipo-sel"
+                                data-idx="{{ loop.index0 }}"
+                                onchange="onTipoChange(this)"
+                                style="padding:6px 8px; font-size:0.82rem; width:auto;">
+                            <option value="Despesa" {{ 'selected' if t.tipo == 'Despesa' }}>Despesa</option>
+                            <option value="Receita" {{ 'selected' if t.tipo == 'Receita' }}>Receita</option>
+                        </select>
+                    </td>
+                    <td style="text-align:right; font-weight:bold;
+                               color:{{ '#22c55e' if t.tipo == 'Receita' else '#ef4444' }};"
+                        id="val_{{ loop.index0 }}">
+                        R$ {{ '%.2f'|format(t.valor) | replace('.', ',') }}
+                    </td>
+                    <td>
+                        <select name="categoria_{{ loop.index0 }}"
+                                id="cat_{{ loop.index0 }}"
+                                style="padding:6px 8px; font-size:0.82rem; width:100%; min-width:130px;">
+                        </select>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</form>
+
+<script>
+    const cats = {{ categorias_select|tojson|safe }};
+
+    function buildCatOptions(tipo, selectedVal) {
+        return (cats[tipo] || []).map(c => {
+            const sel = c === selectedVal ? ' selected' : '';
+            return `<option value="${c}"${sel}>${c}</option>`;
+        }).join('');
+    }
+
+    function onTipoChange(sel) {
+        const idx = sel.dataset.idx;
+        const catSel = document.getElementById('cat_' + idx);
+        catSel.innerHTML = buildCatOptions(sel.value, '');
+        // Update value color
+        const valCell = document.getElementById('val_' + idx);
+        valCell.style.color = sel.value === 'Receita' ? '#22c55e' : '#ef4444';
+    }
+
+    function toggleAll(master) {
+        document.querySelectorAll('.row-check').forEach(c => c.checked = master.checked);
+        updateCount();
+    }
+
+    function updateCount() {
+        const total = document.querySelectorAll('.row-check').length;
+        const checked = document.querySelectorAll('.row-check:checked').length;
+        document.getElementById('count_sel').textContent = checked;
+        document.getElementById('sel_all').indeterminate = checked > 0 && checked < total;
+        document.getElementById('sel_all').checked = checked === total;
+    }
+
+    // Inicializa todos os selects de categoria
+    document.querySelectorAll('.tipo-sel').forEach(sel => {
+        const idx = sel.dataset.idx;
+        document.getElementById('cat_' + idx).innerHTML = buildCatOptions(sel.value, '');
+    });
+</script>
+{% endif %}
+
+{% endblock %}
