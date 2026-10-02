@@ -15,6 +15,7 @@
         </p>
 
         <form method="POST" action="/importar" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group" style="margin-bottom: 20px;">
                 <label>Arquivo do extrato</label>
                 <input type="file" name="arquivo" accept=".ofx,.qfx,.csv,.txt" required style="width: 100%;">
@@ -61,6 +62,7 @@
 {% else %}
 <!-- ─── STEP 2: PREVIEW + CONFIRMAR ───────────────────── -->
 <form method="POST" action="/importar/confirmar">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <textarea name="dados_json" style="display:none">{{ transacoes|tojson }}</textarea>
 
     <!-- Barra de ação -->
@@ -148,17 +150,14 @@
 <script>
     const cats = {{ categorias_select|tojson|safe }};
 
-    function buildCatOptions(tipo, selectedVal) {
-        return (cats[tipo] || []).map(c => {
-            const sel = c === selectedVal ? ' selected' : '';
-            return `<option value="${c}"${sel}>${c}</option>`;
-        }).join('');
+    function fillCatOptions(selectEl, tipo) {
+        selectEl.innerHTML = '';
+        (cats[tipo] || []).forEach(c => selectEl.options.add(new Option(c, c)));
     }
 
     function onTipoChange(sel) {
         const idx = sel.dataset.idx;
-        const catSel = document.getElementById('cat_' + idx);
-        catSel.innerHTML = buildCatOptions(sel.value, '');
+        fillCatOptions(document.getElementById('cat_' + idx), sel.value);
         // Update value color
         const valCell = document.getElementById('val_' + idx);
         valCell.style.color = sel.value === 'Receita' ? '#22c55e' : '#ef4444';
@@ -180,7 +179,7 @@
     // Inicializa todos os selects de categoria
     document.querySelectorAll('.tipo-sel').forEach(sel => {
         const idx = sel.dataset.idx;
-        document.getElementById('cat_' + idx).innerHTML = buildCatOptions(sel.value, '');
+        fillCatOptions(document.getElementById('cat_' + idx), sel.value);
     });
 </script>
 {% endif %}

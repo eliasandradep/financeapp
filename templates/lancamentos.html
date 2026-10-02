@@ -17,6 +17,7 @@
 
 <div class="form-inline card-box">
     <form method="POST" action="/add">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input name="data" type="date" required value="{{ hoje }}">
         <input name="descricao" placeholder="Descrição (ex: Aluguel)" required style="flex: 2;">
         <select name="tipo" id="tipo_select" onchange="updateCats('tipo_select', 'cat_select')">
@@ -64,7 +65,7 @@
                     {{ d.valor | brl }}
                 </td>
                 <td>
-                    <a href="/quitar/{{ d.id }}"
+                    <a href="/quitar/{{ d.id }}" data-post
                        class="status-badge {{ 'status-pago' if d.pago else 'status-pendente' }}"
                        title="{{ 'Clique para desmarcar' if d.pago else 'Clique para quitar' }}">
                         {% if d.pago %}
@@ -76,19 +77,19 @@
                 </td>
                 <td style="display: flex; align-items: center;">
                     <a href="javascript:void(0)" class="action-btn edit" title="Editar"
-                       onclick="openEditLancamento(
+                       onclick='openEditLancamento(
                            {{ d.id }},
-                           {{ d.data_vencimento.strftime('%Y-%m-%d')|tojson }},
+                           {{ d.data_vencimento.strftime("%Y-%m-%d")|tojson }},
                            {{ d.descricao|tojson }},
                            {{ d.tipo|tojson }},
                            {{ d.categoria|tojson }},
-                           {{ d.valor }},
-                           {{ 'true' if d.pago else 'false' }}
-                       )">
+                           {{ d.valor|tojson }},
+                           {{ d.pago|tojson }}
+                       )'>
                         <i class="fa-solid fa-pen-to-square"></i>
                     </a>
-                    <a href="/delete/{{ d.id }}" class="action-btn delete" title="Excluir"
-                       onclick="return confirm('Excluir o lançamento \'{{ d.descricao|e }}\'?')">
+                    <a href="/delete/{{ d.id }}" data-post class="action-btn delete" title="Excluir"
+                       onclick='return confirm({{ ("Excluir o lançamento \"" ~ d.descricao ~ "\"?")|tojson }})'>
                         <i class="fa-solid fa-trash-can"></i>
                     </a>
                 </td>
@@ -118,6 +119,7 @@
 <div id="editLancamentoModal" class="modal">
     <div class="modal-content">
         <form id="editLancamentoForm" method="POST" action="" class="modal-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="modal-header form-full">
                 <i class="fa-solid fa-pen-to-square"></i> Editar Lançamento

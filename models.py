@@ -20,6 +20,11 @@ class Usuario(db.Model, UserMixin):
     def is_active(self):
         return self.ativo
 
+    def get_id(self):
+        # Inclui um trecho do hash da senha: ao trocar a senha, sessões e
+        # cookies "lembrar-me" antigos deixam de ser válidos.
+        return f'{self.id}:{self.password_hash[-16:]}'
+
 
 class Conta(db.Model):
     __tablename__ = 'conta'
@@ -52,3 +57,10 @@ class Lancamento(db.Model):
     valor           = db.Column(db.Float,   nullable=False)
     pago            = db.Column(db.Boolean, default=False)
     conta_id        = db.Column(db.Integer, db.ForeignKey('conta.id'), nullable=False)
+
+
+class TentativaLogin(db.Model):
+    __tablename__ = 'tentativa_login'
+    id        = db.Column(db.Integer, primary_key=True)
+    username  = db.Column(db.String(80), nullable=False, index=True)
+    criado_em = db.Column(db.DateTime, nullable=False, index=True)

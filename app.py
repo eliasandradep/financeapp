@@ -1,24 +1,48 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_login import (LoginManager, login_user, logout_user,
                          login_required, current_user)
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.security import generate_password_hash, check_password_hash
-from models import db, Lancamento, Categoria, Usuario, Conta
-from datetime import datetime, date
-from sqlalchemy import extract, inspect as sa_inspect
+from models import db, Lancamento, Categoria, Usuario, Conta, TentativaLogin
+from datetime import datetime, date, timedelta, timezone
+from sqlalchemy import extract, func
+from sqlalchemy.exc import IntegrityError
+from urllib.parse import urlsplit, urlunsplit
 from functools import wraps
-import os, csv, io, re, json
+import os, csv, io, re, json, math, secrets
 
 # ── App & DB ──────────────────────────────────────────────────────────────────
-app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'financas_2026_dev_key')
+# Modo dev: `python app.py` ou FLASK_DEBUG=1. Fora dele, a configuração é obrigatória.
+_DEV = __name__ == '__main__' or os.environ.get('FLASK_DEBUG') == '1'
 
-_db_url = os.environ.get('DATABASE_URL', 'sqlite:///financas.db')
+app = Flask(__name__)
+
+_secret = os.environ.get('SECRET_KEY')
+if not _secret:
+    if not _DEV:
+        raise RuntimeError('Defina a variável de ambiente SECRET_KEY.')
+    _secret = 'dev-key-somente-local'
+app.secret_key = _secret
+
+_db_url = os.environ.get('DATABASE_URL')
+if not _db_url:
+    if not _DEV:
+        raise RuntimeError('Defina a variável de ambiente DATABASE_URL (ex.: PostgreSQL).')
+    _db_url = 'sqlite:///financas.db'
 if _db_url.startswith('postgres://'):
     _db_url = _db_url.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = _db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'pool_pre_ping': True}
+
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,  SESSION_COOKIE_SAMESITE='Lax',  SESSION_COOKIE_SECURE=not _DEV,
+    REMEMBER_COOKIE_HTTPONLY=True, REMEMBER_COOKIE_SAMESITE='Lax', REMEMBER_COOKIE_SECURE=not _DEV,
+    WTF_CSRF_TIME_LIMIT=None,      # token vale enquanto durar a sessão
+)
 
 db.init_app(app)
+csrf = CSRFProtect(app)
 
 # ── Flask-Login ───────────────────────────────────────────────────────────────
 login_manager = LoginManager(app)
@@ -28,7 +52,12 @@ login_manager.login_message_category = 'error'
 
 @login_manager.user_loader
 def load_user(uid):
-    return db.session.get(Usuario, int(uid))
+    # uid = "<id>:<marca da senha>" (ver Usuario.get_id)
+    id_, _, _ = uid.partition(':')
+    if not id_.isdigit():
+        return None
+    u = db.session.get(Usuario, int(id_))
+    return u if u and secrets.compare_digest(u.get_id(), uid) else None
 
 # ── Migração / Seed ───────────────────────────────────────────────────────────
 CATS_PADRAO = [('Salário', 'Receita'), ('Alimentação', 'Despesa'), ('Moradia', 'Despesa')]
@@ -40,30 +69,42 @@ def _seed_usuario(u):
     for nome, tipo in CATS_PADRAO:
         db.session.add(Categoria(nome=nome, tipo=tipo, usuario_id=u.id))
 
-with app.app_context():
-    inspector = sa_inspect(db.engine)
-    existing = inspector.get_table_names()
-
-    # Detecta schema antigo (sem conta_id em lancamento) e recria tudo
-    if 'lancamento' in existing:
-        cols = [c['name'] for c in inspector.get_columns('lancamento')]
-        if 'conta_id' not in cols:
-            db.drop_all()
-            print('[FinanceApp] Schema atualizado: banco recriado.')
-
+def _init_db():
+    """Cria tabelas que faltam (nunca apaga dados) e o primeiro admin, se não houver nenhum."""
     db.create_all()
-
-    if not Usuario.query.filter_by(username='Admin').first():
-        admin = Usuario(
-            username='Admin',
-            password_hash=generate_password_hash('12345678'),
-            is_admin=True, ativo=True, primeiro_acesso=True
-        )
+    if Usuario.query.filter_by(is_admin=True).first():
+        return
+    username = os.environ.get('ADMIN_USERNAME', 'Admin')
+    senha = os.environ.get('ADMIN_PASSWORD')
+    gerada = not senha
+    if gerada:
+        senha = secrets.token_urlsafe(12)
+    try:
+        admin = Usuario(username=username, password_hash=generate_password_hash(senha),
+                        is_admin=True, ativo=True, primeiro_acesso=True)
         db.session.add(admin)
         db.session.flush()
         _seed_usuario(admin)
+        db.session.commit()
+    except IntegrityError:
+        # Outro processo criou o admin ao mesmo tempo (ou o nome já existe sem ser admin).
+        db.session.rollback()
+        return
+    if gerada:
+        print(f'[FinanceApp] Admin inicial criado: usuário "{username}", senha "{senha}". '
+              'A troca de senha será exigida no primeiro acesso.', flush=True)
 
-    db.session.commit()
+with app.app_context():
+    _init_db()
+    # Com `gunicorn --preload` isto roda uma vez no processo mestre; descarta as
+    # conexões abertas para que os workers não compartilhem sockets após o fork.
+    db.engine.dispose()
+
+# ── Erros ─────────────────────────────────────────────────────────────────────
+@app.errorhandler(CSRFError)
+def csrf_error(e):
+    flash('Sua sessão expirou ou a requisição é inválida. Tente novamente.', 'error')
+    return _redirect_seguro(request.referrer, 'index')
 
 # ── Before request ────────────────────────────────────────────────────────────
 @app.before_request
@@ -272,26 +313,105 @@ def _cats_select(usuario_id):
     return {'Receita': [c.nome for c in cats if c.tipo == 'Receita'],
             'Despesa': [c.nome for c in cats if c.tipo == 'Despesa']}
 
+def _categoria_valida(nome, tipo, cats=None):
+    """Categoria vazia ou pertencente ao usuário atual e ao tipo informado."""
+    cats = cats or _cats_select(current_user.id)
+    return nome == '' or nome in cats.get(tipo, [])
+
+def _parse_data(s):
+    try:
+        return datetime.strptime(s or '', '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+def _parse_valor(v):
+    try:
+        v = float(v)
+    except (TypeError, ValueError):
+        return None
+    return round(v, 2) if math.isfinite(v) and v > 0 else None
+
+def _validar_lancamento(form):
+    """Valida o formulário de lançamento. Retorna (campos, None) ou (None, mensagem de erro)."""
+    descricao = form.get('descricao', '').strip()
+    tipo      = form.get('tipo', '')
+    categoria = form.get('categoria', '').strip()
+    if tipo not in ('Receita', 'Despesa'):
+        return None, 'Tipo inválido.'
+    if not descricao:
+        return None, 'A descrição é obrigatória.'
+    if not _categoria_valida(categoria, tipo):
+        return None, 'Categoria inválida.'
+    valor = _parse_valor(form.get('valor'))
+    if valor is None:
+        return None, 'O valor deve ser maior que zero.'
+    data_obj = _parse_data(form.get('data'))
+    if not data_obj:
+        return None, 'Data inválida.'
+    return {'data_vencimento': data_obj, 'descricao': descricao[:200], 'categoria': categoria,
+            'tipo': tipo, 'valor': valor, 'pago': 'pago' in form}, None
+
+def _redirect_seguro(alvo, padrao):
+    """Redireciona só para URLs do próprio site (evita open redirect)."""
+    if alvo:
+        p = urlsplit(alvo.replace('\\', '/'))
+        if (p.scheme in ('', 'http', 'https')
+                and p.netloc in ('', request.host)
+                and p.path.startswith('/') and not p.path.startswith('//')):
+            return redirect(urlunsplit(('', '', p.path, p.query, '')))
+    return redirect(url_for(padrao))
+
+# Limite de tentativas de login por usuário
+LOGIN_MAX_FALHAS = 5
+LOGIN_JANELA     = timedelta(minutes=15)
+
+def _agora_utc():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+def _login_bloqueado(username):
+    desde = _agora_utc() - LOGIN_JANELA
+    return TentativaLogin.query.filter(TentativaLogin.username == username,
+                                       TentativaLogin.criado_em >= desde).count() >= LOGIN_MAX_FALHAS
+
+def _registrar_falha_login(username):
+    agora = _agora_utc()
+    TentativaLogin.query.filter(TentativaLogin.criado_em < agora - LOGIN_JANELA).delete()
+    db.session.add(TentativaLogin(username=username, criado_em=agora))
+    db.session.commit()
+
+def _buscar_usuario(username):
+    """Busca sem diferenciar maiúsculas/minúsculas."""
+    return Usuario.query.filter(func.lower(Usuario.username) == username.lower()).first()
+
 # ── Auth ──────────────────────────────────────────────────────────────────────
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     if request.method == 'POST':
-        user = Usuario.query.filter_by(username=request.form.get('username', '').strip()).first()
+        username = request.form.get('username', '').strip()
+        chave = username.lower()[:80]
+        if _login_bloqueado(chave):
+            flash('Muitas tentativas de login. Aguarde alguns minutos e tente novamente.', 'error')
+            return redirect(url_for('login'))
+        user = _buscar_usuario(username)
         if user and check_password_hash(user.password_hash, request.form.get('password', '')):
             if not user.ativo:
                 flash('Conta desativada. Contacte o administrador.', 'error')
                 return redirect(url_for('login'))
+            TentativaLogin.query.filter_by(username=chave).delete()
+            db.session.commit()
+            session.clear()
             login_user(user, remember=bool(request.form.get('remember')))
             if user.primeiro_acesso:
                 flash('Bem-vindo! Defina sua senha antes de continuar.', 'error')
                 return redirect(url_for('alterar_senha'))
-            return redirect(request.args.get('next') or url_for('index'))
+            return _redirect_seguro(request.args.get('next'), 'index')
+        _registrar_falha_login(chave)
         flash('Usuário ou senha incorretos.', 'error')
     return render_template('login.html')
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 @login_required
 def logout():
     session.pop('conta_id', None)
@@ -313,9 +433,12 @@ def alterar_senha():
         if nova != request.form.get('confirmar_senha', ''):
             flash('As senhas não coincidem.', 'error')
             return redirect(url_for('alterar_senha'))
-        current_user.password_hash = generate_password_hash(nova)
-        current_user.primeiro_acesso = False
+        user = current_user._get_current_object()
+        user.password_hash = generate_password_hash(nova)
+        user.primeiro_acesso = False
         db.session.commit()
+        # A troca de senha invalida as sessões antigas; renova a sessão atual.
+        login_user(user, remember=bool(request.cookies.get('remember_token')))
         flash('Senha alterada com sucesso!', 'success')
         return redirect(url_for('index'))
     return render_template('alterar_senha.html')
@@ -360,7 +483,7 @@ def edit_conta(id):
     flash('Conta atualizada.', 'success')
     return redirect(url_for('contas'))
 
-@app.route('/contas/delete/<int:id>')
+@app.route('/contas/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_conta(id):
     c = db.session.get(Conta, id)
@@ -378,14 +501,14 @@ def delete_conta(id):
     flash(f'Conta "{nome}" excluída.', 'success')
     return redirect(url_for('contas'))
 
-@app.route('/contas/selecionar/<int:id>')
+@app.route('/contas/selecionar/<int:id>', methods=['POST'])
 @login_required
 def selecionar_conta(id):
     c = db.session.get(Conta, id)
     if c and c.usuario_id == current_user.id:
         session['conta_id'] = id
         flash(f'Conta alterada para "{c.nome}".', 'success')
-    return redirect(request.referrer or url_for('index'))
+    return _redirect_seguro(request.referrer, 'index')
 
 # ── Admin: Usuários ───────────────────────────────────────────────────────────
 @app.route('/admin/usuarios')
@@ -410,7 +533,10 @@ def admin_add_usuario():
     if len(password) < 8:
         flash('A senha deve ter pelo menos 8 caracteres.', 'error')
         return redirect(url_for('admin_usuarios'))
-    if Usuario.query.filter_by(username=username).first():
+    if len(username) > 80:
+        flash('Nome de usuário muito longo (máx. 80 caracteres).', 'error')
+        return redirect(url_for('admin_usuarios'))
+    if _buscar_usuario(username):
         flash(f'Usuário "{username}" já existe.', 'error')
         return redirect(url_for('admin_usuarios'))
 
@@ -433,7 +559,11 @@ def admin_edit_usuario(id):
         return redirect(url_for('admin_usuarios'))
     novo_username = request.form.get('username', '').strip()
     if novo_username and novo_username != user.username:
-        if Usuario.query.filter_by(username=novo_username).first():
+        if len(novo_username) > 80:
+            flash('Nome de usuário muito longo (máx. 80 caracteres).', 'error')
+            return redirect(url_for('admin_usuarios'))
+        existente = _buscar_usuario(novo_username)
+        if existente and existente.id != user.id:
             flash(f'Usuário "{novo_username}" já existe.', 'error')
             return redirect(url_for('admin_usuarios'))
         user.username = novo_username
@@ -444,7 +574,7 @@ def admin_edit_usuario(id):
     flash('Usuário atualizado.', 'success')
     return redirect(url_for('admin_usuarios'))
 
-@app.route('/admin/usuarios/toggle/<int:id>')
+@app.route('/admin/usuarios/toggle/<int:id>', methods=['POST'])
 @login_required
 @admin_required
 def admin_toggle_usuario(id):
@@ -475,10 +605,12 @@ def admin_reset_senha(id):
     user.password_hash = generate_password_hash(nova)
     user.primeiro_acesso = True
     db.session.commit()
+    if user.id == current_user.id:
+        login_user(user)  # a troca de senha invalidou a sessão atual
     flash(f'Senha de "{user.username}" redefinida. O usuário deverá alterá-la no próximo acesso.', 'success')
     return redirect(url_for('admin_usuarios'))
 
-@app.route('/admin/usuarios/delete/<int:id>')
+@app.route('/admin/usuarios/delete/<int:id>', methods=['POST'])
 @login_required
 @admin_required
 def admin_delete_usuario(id):
@@ -553,31 +685,14 @@ def add():
         flash('Selecione uma conta primeiro.', 'error')
         return redirect(url_for('contas'))
 
-    descricao = request.form.get('descricao', '').strip()
-    tipo      = request.form.get('tipo', '')
-    categoria = request.form.get('categoria', '').strip()
-
-    if tipo not in ('Receita', 'Despesa'):
-        flash('Tipo inválido.', 'error')
+    dados, erro = _validar_lancamento(request.form)
+    if erro:
+        flash(erro, 'error')
         return redirect(url_for('lancamentos'))
-    if not descricao:
-        flash('A descrição é obrigatória.', 'error')
-        return redirect(url_for('lancamentos'))
-    try:
-        valor = float(request.form.get('valor', 0))
-        if valor <= 0:
-            raise ValueError()
-    except ValueError:
-        flash('O valor deve ser maior que zero.', 'error')
-        return redirect(url_for('lancamentos'))
-
-    data_obj = datetime.strptime(request.form['data'], '%Y-%m-%d').date()
-    db.session.add(Lancamento(
-        data_vencimento=data_obj, descricao=descricao, categoria=categoria,
-        tipo=tipo, valor=valor, pago='pago' in request.form, conta_id=conta.id
-    ))
+    db.session.add(Lancamento(conta_id=conta.id, **dados))
     db.session.commit()
     flash('Lançamento adicionado!', 'success')
+    data_obj = dados['data_vencimento']
     return redirect(url_for('lancamentos', mes=data_obj.month, ano=data_obj.year))
 
 @app.route('/edit/<int:id>', methods=['POST'])
@@ -587,34 +702,26 @@ def edit_lancamento(id):
     if not l or l.conta.usuario_id != current_user.id:
         flash('Lançamento não encontrado.', 'error')
         return redirect(url_for('lancamentos'))
-    try:
-        valor = float(request.form.get('valor', 0))
-        if valor <= 0:
-            raise ValueError()
-    except ValueError:
-        flash('O valor deve ser maior que zero.', 'error')
+    dados, erro = _validar_lancamento(request.form)
+    if erro:
+        flash(erro, 'error')
         return redirect(url_for('lancamentos', mes=l.data_vencimento.month, ano=l.data_vencimento.year))
-
-    l.data_vencimento = datetime.strptime(request.form['data'], '%Y-%m-%d').date()
-    l.descricao = request.form.get('descricao', '').strip()
-    l.tipo      = request.form.get('tipo', l.tipo)
-    l.categoria = request.form.get('categoria', l.categoria)
-    l.valor     = valor
-    l.pago      = 'pago' in request.form
+    for campo, v in dados.items():
+        setattr(l, campo, v)
     db.session.commit()
     flash('Lançamento atualizado!', 'success')
     return redirect(url_for('lancamentos', mes=l.data_vencimento.month, ano=l.data_vencimento.year))
 
-@app.route('/quitar/<int:id>')
+@app.route('/quitar/<int:id>', methods=['POST'])
 @login_required
 def quitar(id):
     l = db.session.get(Lancamento, id)
     if l and l.conta.usuario_id == current_user.id:
         l.pago = not l.pago
         db.session.commit()
-    return redirect(request.referrer or url_for('lancamentos'))
+    return _redirect_seguro(request.referrer, 'lancamentos')
 
-@app.route('/delete/<int:id>')
+@app.route('/delete/<int:id>', methods=['POST'])
 @login_required
 def delete(id):
     l = db.session.get(Lancamento, id)
@@ -685,7 +792,7 @@ def edit_categoria(id):
     flash('Categoria atualizada!', 'success')
     return redirect(url_for('configuracoes'))
 
-@app.route('/configuracoes/categoria/delete/<int:id>')
+@app.route('/configuracoes/categoria/delete/<int:id>', methods=['POST'])
 @login_required
 def delete_categoria(id):
     cat = db.session.get(Categoria, id)
@@ -773,21 +880,28 @@ def importar_confirmar():
         flash('Erro ao processar dados de importação.', 'error')
         return redirect(url_for('importar'))
 
+    if not isinstance(transacoes, list):
+        flash('Erro ao processar dados de importação.', 'error')
+        return redirect(url_for('importar'))
+
+    cats = _cats_select(current_user.id)
     importados = 0
     for i, t in enumerate(transacoes):
-        if not request.form.get(f'importar_{i}'):
+        if not request.form.get(f'importar_{i}') or not isinstance(t, dict):
             continue
-        try:
-            db.session.add(Lancamento(
-                data_vencimento=datetime.strptime(t['data'], '%Y-%m-%d').date(),
-                descricao=t['descricao'][:200],
-                categoria=request.form.get(f'categoria_{i}', ''),
-                tipo=request.form.get(f'tipo_{i}', t.get('tipo', 'Despesa')),
-                valor=float(t['valor']), pago=True, conta_id=conta.id
-            ))
-            importados += 1
-        except Exception:
+        data_obj  = _parse_data(str(t.get('data', '')))
+        valor     = _parse_valor(t.get('valor'))
+        tipo      = request.form.get(f'tipo_{i}', t.get('tipo', 'Despesa'))
+        categoria = request.form.get(f'categoria_{i}', '').strip()
+        if (not data_obj or valor is None or tipo not in ('Receita', 'Despesa')
+                or not _categoria_valida(categoria, tipo, cats)):
             continue
+        db.session.add(Lancamento(
+            data_vencimento=data_obj,
+            descricao=str(t.get('descricao') or 'Sem descrição')[:200],
+            categoria=categoria, tipo=tipo, valor=valor, pago=True, conta_id=conta.id
+        ))
+        importados += 1
 
     if importados:
         db.session.commit()

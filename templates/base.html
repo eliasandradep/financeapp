@@ -29,7 +29,7 @@
         <div class="account-dropdown" id="acct-dropdown" style="display:none;">
             {% for c in user_contas %}
             {% if c.id != conta_atual.id %}
-            <a href="/contas/selecionar/{{ c.id }}" class="account-dropdown-item">
+            <a href="/contas/selecionar/{{ c.id }}" data-post class="account-dropdown-item">
                 <i class="fa-solid fa-building-columns"></i>
                 <span>{{ c.nome }}</span>
                 <small>{{ c.tipo }}</small>
@@ -95,7 +95,7 @@
             <a href="/alterar-senha" class="sidebar-action-btn" title="Alterar senha">
                 <i class="fa-solid fa-key"></i>
             </a>
-            <a href="/logout" class="sidebar-action-btn sidebar-logout" title="Sair">
+            <a href="/logout" data-post class="sidebar-action-btn sidebar-logout" title="Sair">
                 <i class="fa-solid fa-right-from-bracket"></i>
             </a>
         </div>
@@ -128,6 +128,22 @@
             setTimeout(() => el.remove(), 400);
         });
     }, 4000);
+
+    // Links com data-post enviam um POST com token CSRF (ações que alteram dados).
+    // Se um onclick do próprio link cancelar (ex.: confirm), nada é enviado.
+    document.addEventListener('click', e => {
+        const a = e.target.closest('a[data-post]');
+        if (!a || e.defaultPrevented) return;
+        e.preventDefault();
+        const f = document.createElement('form');
+        f.method = 'POST';
+        f.action = a.getAttribute('href');
+        const t = document.createElement('input');
+        t.type = 'hidden'; t.name = 'csrf_token'; t.value = {{ csrf_token()|tojson }};
+        f.appendChild(t);
+        document.body.appendChild(f);
+        f.submit();
+    });
 
     // Account dropdown toggle
     function toggleAcctMenu() {

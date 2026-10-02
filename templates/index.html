@@ -36,6 +36,7 @@
     <div class="form-container">
         <h2>Novo Lançamento</h2>
         <form method="POST" action="/add">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input name="data" type="date" required value="{{ hoje }}">
             <input name="descricao" placeholder="Descrição" required>
             <select name="tipo" id="tipo_select" onchange="atualizarCategorias()">

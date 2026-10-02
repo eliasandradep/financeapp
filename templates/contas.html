@@ -12,6 +12,7 @@
             Cadastre contas bancárias, cartões ou carteiras para gerenciar separadamente.
         </p>
         <form method="POST" action="/contas/add">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group" style="margin-bottom:12px;">
                 <label>Nome da conta</label>
                 <input name="nome" placeholder="Ex: Santander, C6 Bank, Carteira…" required style="width:100%;">
@@ -73,17 +74,17 @@
                     <td style="font-size:0.85rem;">{{ contagem.get(c.id, 0) }} lançamento{{ 's' if contagem.get(c.id, 0) != 1 }}</td>
                     <td>
                         {% if not (conta_atual and c.id == conta_atual.id) %}
-                        <a href="/contas/selecionar/{{ c.id }}" class="action-btn"
+                        <a href="/contas/selecionar/{{ c.id }}" data-post class="action-btn"
                            style="color:var(--success);" title="Usar esta conta">
                             <i class="fa-solid fa-circle-check"></i>
                         </a>
                         {% endif %}
                         <a href="javascript:void(0)" class="action-btn edit" title="Editar"
-                           onclick="openEditConta('{{ c.id }}', {{ c.nome|tojson }}, '{{ c.tipo }}', {{ (c.banco or '')|tojson }}, {{ (c.descricao or '')|tojson }})">
+                           onclick='openEditConta({{ c.id }}, {{ c.nome|tojson }}, {{ c.tipo|tojson }}, {{ (c.banco or "")|tojson }}, {{ (c.descricao or "")|tojson }})'>
                             <i class="fa-solid fa-pen-to-square"></i>
                         </a>
-                        <a href="/contas/delete/{{ c.id }}" class="action-btn delete" title="Excluir"
-                           onclick="return confirmDeleteConta({{ c.nome|tojson }}, {{ contagem.get(c.id, 0) }})">
+                        <a href="/contas/delete/{{ c.id }}" data-post class="action-btn delete" title="Excluir"
+                           onclick='return confirmDeleteConta({{ c.nome|tojson }}, {{ contagem.get(c.id, 0) }})'>
                             <i class="fa-solid fa-trash-can"></i>
                         </a>
                     </td>
@@ -107,6 +108,7 @@
 <div id="editContaModal" class="modal">
     <div class="modal-content">
         <form id="editContaForm" method="POST" action="" class="modal-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="modal-header form-full">
                 <i class="fa-solid fa-pen-to-square"></i> Editar Conta
             </div>

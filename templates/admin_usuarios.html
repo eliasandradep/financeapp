@@ -12,6 +12,7 @@
             O usuário precisará alterar a senha no primeiro acesso.
         </p>
         <form method="POST" action="/admin/usuarios/add">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group" style="margin-bottom:12px;">
                 <label>Nome de usuário</label>
                 <input name="username" placeholder="Ex: joao.silva" required style="width:100%;">
@@ -81,25 +82,25 @@
                         <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
                             <!-- Editar -->
                             <a href="javascript:void(0)" class="action-btn edit" title="Editar"
-                               onclick="openEditUsuario('{{ u.id }}', {{ u.username|tojson }}, {{ u.is_admin|lower }})">
+                               onclick='openEditUsuario({{ u.id }}, {{ u.username|tojson }}, {{ u.is_admin|tojson }})'>
                                 <i class="fa-solid fa-pen-to-square"></i>
                             </a>
                             <!-- Reset senha -->
                             <a href="javascript:void(0)" class="action-btn" title="Redefinir senha"
                                style="color:var(--warning);"
-                               onclick="openResetSenha('{{ u.id }}', {{ u.username|tojson }})">
+                               onclick='openResetSenha({{ u.id }}, {{ u.username|tojson }})'>
                                 <i class="fa-solid fa-key"></i>
                             </a>
                             {% if u.id != current_user.id %}
                             <!-- Ativar/Desativar -->
-                            <a href="/admin/usuarios/toggle/{{ u.id }}" class="action-btn" title="{{ 'Desativar' if u.ativo else 'Ativar' }}"
+                            <a href="/admin/usuarios/toggle/{{ u.id }}" data-post class="action-btn" title="{{ 'Desativar' if u.ativo else 'Ativar' }}"
                                style="color:{{ '#94a3b8' if u.ativo else '#22c55e' }}"
-                               onclick="return confirm('{{ 'Desativar' if u.ativo else 'Ativar' }} o usuário {{ u.username }}?')">
+                               onclick='return confirm({{ (("Desativar" if u.ativo else "Ativar") ~ " o usuário " ~ u.username ~ "?")|tojson }})'>
                                 <i class="fa-solid {{ 'fa-user-slash' if u.ativo else 'fa-user-check' }}"></i>
                             </a>
                             <!-- Excluir -->
-                            <a href="/admin/usuarios/delete/{{ u.id }}" class="action-btn delete" title="Excluir"
-                               onclick="return confirm('Excluir o usuário {{ u.username|e }} e TODOS os seus dados?\n\nEsta ação é irreversível.')">
+                            <a href="/admin/usuarios/delete/{{ u.id }}" data-post class="action-btn delete" title="Excluir"
+                               onclick='return confirm({{ ("Excluir o usuário " ~ u.username ~ " e TODOS os seus dados?\n\nEsta ação é irreversível.")|tojson }})'>
                                 <i class="fa-solid fa-trash-can"></i>
                             </a>
                             {% endif %}
@@ -116,6 +117,7 @@
 <div id="editUsuarioModal" class="modal">
     <div class="modal-content">
         <form id="editUsuarioForm" method="POST" action="" class="modal-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="modal-header form-full">
                 <i class="fa-solid fa-pen-to-square"></i> Editar Usuário
             </div>
@@ -139,6 +141,7 @@
 <div id="resetSenhaModal" class="modal">
     <div class="modal-content">
         <form id="resetSenhaForm" method="POST" action="" class="modal-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="modal-header form-full">
                 <i class="fa-solid fa-key"></i> Redefinir Senha — <span id="rs_username"></span>
             </div>

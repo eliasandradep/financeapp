@@ -11,6 +11,7 @@
         </p>
 
         <form method="POST" action="/configuracoes/categoria/add">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group">
                 <label>Nome da Categoria</label>
                 <input name="nome" placeholder="Ex: Mercado, Freelance..." required style="width: 100%;">
@@ -56,14 +57,14 @@
                     </td>
                     <td>
                         <a href="javascript:void(0)" class="action-btn edit"
-                           onclick="openEditModal('{{ c.id }}', {{ c.nome|tojson }}, '{{ c.tipo }}')"
+                           onclick='openEditModal({{ c.id }}, {{ c.nome|tojson }}, {{ c.tipo|tojson }})'
                            title="Editar">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </a>
-                        <a href="/configuracoes/categoria/delete/{{ c.id }}"
+                        <a href="/configuracoes/categoria/delete/{{ c.id }}" data-post
                            class="action-btn delete"
                            title="Excluir"
-                           onclick="return confirmDeleteCat({{ c.nome|tojson }}, {{ contagem.get(c.nome, 0) }})">
+                           onclick='return confirmDeleteCat({{ c.nome|tojson }}, {{ contagem.get(c.nome, 0) }})'>
                             <i class="fa-solid fa-trash-can"></i>
                         </a>
                     </td>
@@ -87,6 +88,7 @@
 <div id="editModal" class="modal">
     <div class="modal-content">
         <form id="editForm" method="POST" action="" class="modal-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="modal-header form-full">
                 <i class="fa-solid fa-pen-to-square"></i> Editar Categoria
