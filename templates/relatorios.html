@@ -15,7 +15,7 @@
 </div>
 
 <!-- Cards de resumo anual -->
-<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px;">
+<div class="grid-3">
     <div class="card-box">
         <h3><i class="fa-solid fa-arrow-up" style="color: #22c55e;"></i> Total Receitas</h3>
         <p style="font-size: 1.5rem; font-weight: bold; color: #22c55e; margin-top: 8px;">
@@ -47,7 +47,7 @@
 
 <!-- Tabela de resumo por mês -->
 <div class="table-container">
-    <table>
+    <table class="table-stack">
         <thead>
             <tr>
                 <th>MÊS</th>
@@ -65,14 +65,14 @@
             {% endif %}
             <tr style="{{ 'opacity: 0.4;' if r.receita == 0 and r.despesa == 0 }}">
                 <td style="font-weight: bold;">{{ r.nome }}</td>
-                <td style="color: #22c55e;">{{ r.receita | brl }}</td>
-                <td style="color: #ef4444;">{{ r.despesa | brl }}</td>
-                <td>
+                <td data-label="Receitas" style="color: #22c55e;">{{ r.receita | brl }}</td>
+                <td data-label="Despesas" style="color: #ef4444;">{{ r.despesa | brl }}</td>
+                <td data-label="Saldo">
                     <strong style="color: {{ '#22c55e' if r.saldo >= 0 else '#ef4444' }};">
                         {{ r.saldo | brl }}
                     </strong>
                 </td>
-                <td>
+                <td data-label="Situação">
                     {% if r.receita == 0 and r.despesa == 0 %}
                         <span style="color: var(--text-muted); font-size: 0.8rem;">sem dados</span>
                     {% elif r.saldo >= 0 %}
@@ -90,15 +90,15 @@
             <!-- Linha de totais -->
             <tr style="background: #334155; font-weight: bold;">
                 <td>TOTAL</td>
-                <td style="color: #22c55e;">{{ total_rec | brl }}</td>
-                <td style="color: #ef4444;">{{ total_des | brl }}</td>
-                <td>
+                <td data-label="Receitas" style="color: #22c55e;">{{ total_rec | brl }}</td>
+                <td data-label="Despesas" style="color: #ef4444;">{{ total_des | brl }}</td>
+                <td data-label="Saldo">
                     {% set saldo_ano = total_rec - total_des %}
                     <strong style="color: {{ '#22c55e' if saldo_ano >= 0 else '#ef4444' }};">
                         {{ saldo_ano | brl }}
                     </strong>
                 </td>
-                <td></td>
+                <td class="hide-mobile"></td>
             </tr>
         </tbody>
     </table>

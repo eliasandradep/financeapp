@@ -31,7 +31,7 @@
 
     <!-- Tabela de usuários -->
     <div class="table-container">
-        <table>
+        <table class="table-stack">
             <thead>
                 <tr>
                     <th>USUÁRIO</th>
@@ -54,14 +54,14 @@
                             {% endif %}
                         </div>
                     </td>
-                    <td>
+                    <td data-label="Função">
                         {% if u.is_admin %}
                         <span class="role-badge role-admin"><i class="fa-solid fa-shield-halved"></i> Admin</span>
                         {% else %}
                         <span class="role-badge role-user"><i class="fa-solid fa-user"></i> Usuário</span>
                         {% endif %}
                     </td>
-                    <td>
+                    <td data-label="Status">
                         {% if u.ativo %}
                         <span class="status-badge status-pago"><i class="fa-solid fa-circle-check"></i> Ativo</span>
                         {% else %}
@@ -75,10 +75,10 @@
                         </span>
                         {% endif %}
                     </td>
-                    <td style="font-size:0.85rem; color:var(--text-muted);">
+                    <td data-label="Contas" style="font-size:0.85rem; color:var(--text-muted);">
                         {{ n_contas.get(u.id, 0) }} conta{{ 's' if n_contas.get(u.id, 0) != 1 }}
                     </td>
-                    <td>
+                    <td data-label="Ações">
                         <div style="display:flex; align-items:center; gap:4px; flex-wrap:wrap;">
                             <!-- Editar -->
                             <a href="javascript:void(0)" class="action-btn edit" title="Editar"

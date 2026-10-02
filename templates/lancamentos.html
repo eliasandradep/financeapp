@@ -15,32 +15,32 @@
     </div>
 </div>
 
-<div class="form-inline card-box">
+<div class="form-inline card-box form-lanc">
     <form method="POST" action="/add">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input name="data" type="date" required value="{{ hoje }}">
-        <input name="descricao" placeholder="Descrição (ex: Aluguel)" required style="flex: 2;">
-        <select name="tipo" id="tipo_select" onchange="updateCats('tipo_select', 'cat_select')">
+        <input name="data" type="date" required value="{{ hoje }}" class="f-data" aria-label="Data de vencimento">
+        <input name="descricao" placeholder="Descrição (ex: Aluguel)" required class="f-desc">
+        <select name="tipo" id="tipo_select" class="f-tipo" onchange="updateCats('tipo_select', 'cat_select')">
             <option value="Despesa">Despesa</option>
             <option value="Receita">Receita</option>
         </select>
-        <select name="categoria" id="cat_select" required style="flex: 1.5;"></select>
-        <div class="valor-wrap">
+        <select name="categoria" id="cat_select" required class="f-cat" aria-label="Categoria"></select>
+        <div class="valor-wrap f-valor">
             <span>R$</span>
             <input id="add_valor_display" type="text" inputmode="numeric" placeholder="0,00"
-                   autocomplete="off" required style="width: 90px;"
+                   autocomplete="off" required aria-label="Valor"
                    oninput="maskBRL(this, document.getElementById('add_valor'))">
             <input id="add_valor" name="valor" type="hidden">
         </div>
-        <label style="font-size: 0.8rem; color: var(--text-muted);">
+        <label class="f-pago">
             <input type="checkbox" name="pago"> Já quitado?
         </label>
-        <button type="submit"><i class="fa-solid fa-plus"></i> Adicionar</button>
+        <button type="submit" class="f-btn"><i class="fa-solid fa-plus"></i> Adicionar</button>
     </form>
 </div>
 
 <div class="table-container">
-    <table>
+    <table class="table-stack">
         <thead>
             <tr>
                 <th>VENCIMENTO</th>
@@ -55,16 +55,16 @@
             {% for d in dados %}
             {% set vencido = d.data_vencimento < hoje_date and not d.pago %}
             <tr>
-                <td class="{{ 'vencido' if vencido }}">
+                <td data-label="Vencimento" class="{{ 'vencido' if vencido }}">
                     {% if vencido %}<i class="fa-solid fa-triangle-exclamation" title="Vencido"></i> {% endif %}
                     {{ d.data_vencimento.strftime('%d/%m/%Y') }}
                 </td>
-                <td>{{ d.descricao }}</td>
-                <td><span class="tag"><i class="fa-solid fa-tag"></i> {{ d.categoria }}</span></td>
-                <td style="color: {{ '#22c55e' if d.tipo == 'Receita' else '#ef4444' }}; font-weight: bold;">
+                <td data-label="Descrição">{{ d.descricao }}</td>
+                <td data-label="Categoria"><span class="tag"><i class="fa-solid fa-tag"></i> {{ d.categoria }}</span></td>
+                <td data-label="Valor" style="color: {{ '#22c55e' if d.tipo == 'Receita' else '#ef4444' }}; font-weight: bold;">
                     {{ d.valor | brl }}
                 </td>
-                <td>
+                <td data-label="Status">
                     <a href="/quitar/{{ d.id }}" data-post
                        class="status-badge {{ 'status-pago' if d.pago else 'status-pendente' }}"
                        title="{{ 'Clique para desmarcar' if d.pago else 'Clique para quitar' }}">
@@ -75,7 +75,8 @@
                         {% endif %}
                     </a>
                 </td>
-                <td style="display: flex; align-items: center;">
+                <td data-label="Ações">
+                    <span style="display: inline-flex; align-items: center;">
                     <a href="javascript:void(0)" class="action-btn edit" title="Editar"
                        onclick='openEditLancamento(
                            {{ d.id }},
@@ -92,6 +93,7 @@
                        onclick='return confirm({{ ("Excluir o lançamento \"" ~ d.descricao ~ "\"?")|tojson }})'>
                         <i class="fa-solid fa-trash-can"></i>
                     </a>
+                    </span>
                 </td>
             </tr>
             {% else %}

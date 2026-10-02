@@ -41,7 +41,7 @@
 
     <!-- Tabela de contas -->
     <div class="table-container">
-        <table>
+        <table class="table-stack">
             <thead>
                 <tr>
                     <th>CONTA</th>
@@ -69,10 +69,10 @@
                             </div>
                         </div>
                     </td>
-                    <td style="color:var(--text-muted); font-size:0.85rem;">{{ c.tipo }}</td>
-                    <td style="color:var(--text-muted); font-size:0.85rem;">{{ c.banco or '—' }}</td>
-                    <td style="font-size:0.85rem;">{{ contagem.get(c.id, 0) }} lançamento{{ 's' if contagem.get(c.id, 0) != 1 }}</td>
-                    <td>
+                    <td data-label="Tipo" style="color:var(--text-muted); font-size:0.85rem;">{{ c.tipo }}</td>
+                    <td data-label="Banco" style="color:var(--text-muted); font-size:0.85rem;">{{ c.banco or '—' }}</td>
+                    <td data-label="Lançamentos" style="font-size:0.85rem;">{{ contagem.get(c.id, 0) }} lançamento{{ 's' if contagem.get(c.id, 0) != 1 }}</td>
+                    <td data-label="Ações">
                         {% if not (conta_atual and c.id == conta_atual.id) %}
                         <a href="/contas/selecionar/{{ c.id }}" data-post class="action-btn"
                            style="color:var(--success);" title="Usar esta conta">

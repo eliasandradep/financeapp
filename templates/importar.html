@@ -5,7 +5,7 @@
 
 {% if not transacoes %}
 <!-- ─── STEP 1: UPLOAD ─────────────────────────────────── -->
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: start;">
+<div class="grid-2" style="gap: 30px; align-items: start;">
 
     <div class="card-box">
         <h3><i class="fa-solid fa-upload"></i> Selecionar Arquivo</h3>
@@ -18,7 +18,7 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="form-group" style="margin-bottom: 20px;">
                 <label>Arquivo do extrato</label>
-                <input type="file" name="arquivo" accept=".ofx,.qfx,.csv,.txt" required style="width: 100%;">
+                <input type="file" name="arquivo" required style="width: 100%;">
             </div>
             <button type="submit" style="width: 100%;">
                 <i class="fa-solid fa-magnifying-glass"></i> Analisar Arquivo
@@ -93,7 +93,7 @@
 
     <!-- Tabela de preview -->
     <div class="table-container">
-        <table>
+        <table class="table-stack">
             <thead>
                 <tr>
                     <th style="width:42px;">
@@ -110,16 +110,16 @@
             <tbody>
                 {% for t in transacoes %}
                 <tr id="row_{{ loop.index0 }}">
-                    <td>
+                    <td data-label="Importar">
                         <input type="checkbox" name="importar_{{ loop.index0 }}" checked
                                class="row-check" onchange="updateCount()">
                     </td>
-                    <td style="white-space:nowrap;">{{ t.data | dmy }}</td>
-                    <td style="font-size:0.88rem; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+                    <td data-label="Data" style="white-space:nowrap;">{{ t.data | dmy }}</td>
+                    <td data-label="Descrição" class="td-truncate" style="font-size:0.88rem; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
                         title="{{ t.descricao }}">
                         {{ t.descricao }}
                     </td>
-                    <td>
+                    <td data-label="Tipo">
                         <select name="tipo_{{ loop.index0 }}"
                                 class="tipo-sel"
                                 data-idx="{{ loop.index0 }}"
@@ -129,12 +129,12 @@
                             <option value="Receita" {{ 'selected' if t.tipo == 'Receita' }}>Receita</option>
                         </select>
                     </td>
-                    <td style="text-align:right; font-weight:bold;
+                    <td data-label="Valor" style="text-align:right; font-weight:bold;
                                color:{{ '#22c55e' if t.tipo == 'Receita' else '#ef4444' }};"
                         id="val_{{ loop.index0 }}">
                         R$ {{ '%.2f'|format(t.valor) | replace('.', ',') }}
                     </td>
-                    <td>
+                    <td data-label="Categoria">
                         <select name="categoria_{{ loop.index0 }}"
                                 id="cat_{{ loop.index0 }}"
                                 style="padding:6px 8px; font-size:0.82rem; width:100%; min-width:130px;">

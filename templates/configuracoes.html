@@ -12,7 +12,7 @@
 
         <form method="POST" action="/configuracoes/categoria/add">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="form-group">
+            <div class="form-group" style="margin-bottom: 15px;">
                 <label>Nome da Categoria</label>
                 <input name="nome" placeholder="Ex: Mercado, Freelance..." required style="width: 100%;">
             </div>
@@ -30,7 +30,7 @@
     </div>
 
     <div class="table-container">
-        <table>
+        <table class="table-stack">
             <thead>
                 <tr>
                     <th>NOME</th>
@@ -43,19 +43,19 @@
                 {% for c in categorias %}
                 <tr>
                     <td style="font-weight: bold; color: var(--text-main);">{{ c.nome }}</td>
-                    <td>
+                    <td data-label="Tipo">
                         <span style="color: {{ '#22c55e' if c.tipo == 'Receita' else '#f87171' }}">
                             <i class="fa-solid {{ 'fa-arrow-up' if c.tipo == 'Receita' else 'fa-arrow-down' }}"></i>
                             {{ c.tipo }}
                         </span>
                     </td>
-                    <td>
+                    <td data-label="Lançamentos">
                         {% set qtd = contagem.get(c.nome, 0) %}
                         <span style="color: {{ 'var(--text-muted)' if qtd == 0 else 'var(--text-main)' }}; font-size: 0.85rem;">
                             {{ qtd }} lançamento{{ 's' if qtd != 1 }}
                         </span>
                     </td>
-                    <td>
+                    <td data-label="Ações">
                         <a href="javascript:void(0)" class="action-btn edit"
                            onclick='openEditModal({{ c.id }}, {{ c.nome|tojson }}, {{ c.tipo|tojson }})'
                            title="Editar">

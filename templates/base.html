@@ -2,14 +2,27 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% include '_head_mobile.html' %}
     <title>FinanceApp</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-<div class="sidebar">
+<!-- Barra superior (só no celular/tablet): abre o menu lateral como gaveta -->
+<header class="mobile-topbar">
+    <button type="button" class="menu-toggle" onclick="toggleSidebar()" aria-label="Abrir menu"
+            aria-controls="sidebar" aria-expanded="false">
+        <i class="fa-solid fa-bars"></i>
+    </button>
+    <span class="mobile-brand"><i class="fa-solid fa-wallet"></i> FinanceApp</span>
+    {% if conta_atual %}
+    <span class="mobile-conta" title="Conta ativa">{{ conta_atual.nome }}</span>
+    {% endif %}
+</header>
+<div class="sidebar-overlay" onclick="toggleSidebar(false)"></div>
+
+<div class="sidebar" id="sidebar">
     <h2><i class="fa-solid fa-wallet"></i> FinanceApp</h2>
 
     <!-- Seletor de conta -->
@@ -49,7 +62,8 @@
     </a>
     {% endif %}
 
-    <!-- Navegação principal -->
+    <!-- Navegação principal (rola sozinha; o rodapé do usuário fica sempre visível) -->
+    <nav class="sidebar-nav">
     <a href="/" class="nav-item {{ 'active' if request.path == '/' }}">
         <i class="fa-solid fa-chart-pie"></i> Dashboard
     </a>
@@ -79,6 +93,7 @@
         <i class="fa-solid fa-users-gear"></i> Usuários
     </a>
     {% endif %}
+    </nav>
 
     <!-- Rodapé do usuário -->
     <div class="sidebar-user">
@@ -93,10 +108,10 @@
         </div>
         <div style="display:flex; gap:6px; margin-top:8px;">
             <a href="/alterar-senha" class="sidebar-action-btn" title="Alterar senha">
-                <i class="fa-solid fa-key"></i>
+                <i class="fa-solid fa-key"></i> Senha
             </a>
-            <a href="/logout" data-post class="sidebar-action-btn sidebar-logout" title="Sair">
-                <i class="fa-solid fa-right-from-bracket"></i>
+            <a href="/logout" data-post class="sidebar-action-btn sidebar-logout" title="Sair do sistema">
+                <i class="fa-solid fa-right-from-bracket"></i> Sair
             </a>
         </div>
     </div>
@@ -155,8 +170,19 @@
         if (ch) ch.style.transform = open ? '' : 'rotate(180deg)';
     }
 
-    // Close dropdown when clicking outside
-    document.addEventListener('click', e => {
+    // Menu lateral como gaveta no celular
+    function toggleSidebar(abrir) {
+        const aberto = document.body.classList.toggle('sidebar-open', abrir);
+        document.querySelector('.menu-toggle').setAttribute('aria-expanded', aberto);
+    }
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') toggleSidebar(false); });
+    // Fecha a gaveta ao navegar (inclui o botão "voltar" do iOS, que restaura a página do cache)
+    document.querySelectorAll('.sidebar .nav-item').forEach(a => a.addEventListener('click', () => toggleSidebar(false)));
+    window.addEventListener('pageshow', () => toggleSidebar(false));
+
+    // Fecha o dropdown ao tocar fora. 'pointerdown' porque o iOS não dispara
+    // 'click' em áreas não clicáveis da página.
+    document.addEventListener('pointerdown', e => {
         const sw = document.getElementById('acct-switcher');
         const dd = document.getElementById('acct-dropdown');
         if (sw && dd && !sw.contains(e.target)) {
