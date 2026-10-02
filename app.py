@@ -15,7 +15,9 @@ import os, csv, io, re, json, math, secrets
 # Modo dev: `python app.py` ou FLASK_DEBUG=1. Fora dele, a configuração é obrigatória.
 _DEV = __name__ == '__main__' or os.environ.get('FLASK_DEBUG') == '1'
 
-app = Flask(__name__)
+# Estáticos ficam em public/static: na Vercel a CDN serve public/** na raiz (/static/...);
+# localmente o Flask serve a mesma pasta na mesma URL.
+app = Flask(__name__, static_folder='public/static', static_url_path='/static')
 
 _secret = os.environ.get('SECRET_KEY')
 if not _secret:
