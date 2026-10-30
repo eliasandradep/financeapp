@@ -60,7 +60,7 @@
                     {{ d.data_vencimento.strftime('%d/%m/%Y') }}
                 </td>
                 <td data-label="Descrição">{{ d.descricao }}</td>
-                <td data-label="Categoria"><span class="tag"><i class="fa-solid fa-tag"></i> {{ d.categoria }}</span></td>
+                <td data-label="Categoria"><span class="tag"><i class="fa-solid fa-tag"></i> {{ d.categoria or 'Sem categoria' }}</span></td>
                 <td data-label="Valor" style="color: {{ '#22c55e' if d.tipo == 'Receita' else '#ef4444' }}; font-weight: bold;">
                     {{ d.valor | brl }}
                 </td>
@@ -147,7 +147,7 @@
 
             <div class="form-group">
                 <label>Categoria</label>
-                <select name="categoria" id="edit_categoria" required></select>
+                <select name="categoria" id="edit_categoria"></select>
             </div>
 
             <div class="form-group form-full">
@@ -219,6 +219,8 @@
         const t = document.getElementById(tipoId).value;
         const s = document.getElementById(catId);
         s.innerHTML = '';
+        // Só o modal de edição aceita "sem categoria" (lançamentos importados sem sugestão)
+        if (catId === 'edit_categoria') s.options.add(new Option('— Sem categoria —', ''));
         if (cats[t]) {
             cats[t].forEach(c => {
                 const opt = new Option(c, c);

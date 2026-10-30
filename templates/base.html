@@ -135,6 +135,87 @@
     {% block content %}{% endblock %}
 </div>
 
+{% if conta_atual %}
+<!-- Lançamento por voz: botão flutuante + modal (ouvir → confirmar) -->
+<button type="button" class="voz-fab" id="voz-fab" title="Lançamento por voz" aria-label="Lançamento por voz">
+    <i class="fa-solid fa-microphone"></i>
+</button>
+
+<div id="vozModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="voz-titulo">
+    <div class="modal-content">
+        <div class="modal-header" id="voz-titulo"><i class="fa-solid fa-microphone"></i> Lançamento por voz</div>
+
+        <!-- Etapa 1: ouvir -->
+        <div id="voz-etapa-ouvir">
+            <div class="voz-mic-wrap">
+                <button type="button" class="voz-mic" id="voz-mic" aria-label="Falar">
+                    <i class="fa-solid fa-microphone"></i>
+                </button>
+            </div>
+            <p class="voz-status" id="voz-status" aria-live="polite"></p>
+            <textarea id="voz-texto" rows="3" class="voz-texto"
+                      placeholder="Ex.: gastei R$ 9,90 com barrinha de cereal&#10;Você também pode digitar ou usar o microfone do teclado."></textarea>
+            <div class="voz-acoes">
+                <button type="button" class="btn-action" id="voz-continuar">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Continuar
+                </button>
+                <button type="button" class="btn-cancel" data-voz-fechar>Cancelar</button>
+            </div>
+        </div>
+
+        <!-- Etapa 2: conferir e confirmar (salva pelo /add) -->
+        <form id="voz-etapa-confirmar" method="POST" action="/add" class="modal-form" hidden>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-full voz-ouvido">
+                <i class="fa-solid fa-quote-left"></i> <span id="voz-ouvido"></span>
+            </div>
+            <ul class="form-full voz-avisos" id="voz-avisos" hidden></ul>
+
+            <div class="form-group">
+                <label for="voz-tipo">Tipo</label>
+                <select name="tipo" id="voz-tipo">
+                    <option value="Despesa">Despesa</option>
+                    <option value="Receita">Receita</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="voz-valor-display">Valor (R$)</label>
+                <div class="valor-wrap">
+                    <span>R$</span>
+                    <input id="voz-valor-display" type="text" inputmode="numeric" placeholder="0,00" autocomplete="off" required>
+                    <input id="voz-valor" name="valor" type="hidden">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="voz-data">Data</label>
+                <input type="date" name="data" id="voz-data" required>
+            </div>
+            <div class="form-group">
+                <label for="voz-categoria">Categoria</label>
+                <select name="categoria" id="voz-categoria"></select>
+            </div>
+            <div class="form-group form-full">
+                <label for="voz-descricao">Descrição</label>
+                <input type="text" name="descricao" id="voz-descricao" maxlength="200" required>
+            </div>
+            <div class="form-group checkbox-group">
+                <input type="checkbox" name="pago" id="voz-pago">
+                <label for="voz-pago">Já quitado / recebido?</label>
+            </div>
+            <p class="form-full voz-conta">
+                <i class="fa-solid fa-building-columns"></i> Conta: <strong>{{ conta_atual.nome }}</strong>
+            </p>
+            <div class="modal-actions">
+                <button type="submit" class="btn-action"><i class="fa-solid fa-check"></i> Confirmar</button>
+                <button type="button" class="btn-cancel" id="voz-de-novo"><i class="fa-solid fa-microphone"></i> Falar de novo</button>
+                <button type="button" class="btn-cancel" data-voz-fechar>Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/voz.js') }}" defer></script>
+{% endif %}
+
 <script>
     // Flash auto-remove
     setTimeout(() => {

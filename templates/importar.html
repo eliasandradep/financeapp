@@ -137,6 +137,7 @@
                     <td data-label="Categoria">
                         <select name="categoria_{{ loop.index0 }}"
                                 id="cat_{{ loop.index0 }}"
+                                data-sugestao="{{ t.categoria }}"
                                 style="padding:6px 8px; font-size:0.82rem; width:100%; min-width:130px;">
                         </select>
                     </td>
@@ -150,9 +151,10 @@
 <script>
     const cats = {{ categorias_select|tojson|safe }};
 
-    function fillCatOptions(selectEl, tipo) {
+    function fillCatOptions(selectEl, tipo, sugestao = '') {
         selectEl.innerHTML = '';
-        (cats[tipo] || []).forEach(c => selectEl.options.add(new Option(c, c)));
+        selectEl.options.add(new Option('— Sem categoria —', ''));
+        (cats[tipo] || []).forEach(c => selectEl.options.add(new Option(c, c, false, c === sugestao)));
     }
 
     function onTipoChange(sel) {
@@ -179,7 +181,8 @@
     // Inicializa todos os selects de categoria
     document.querySelectorAll('.tipo-sel').forEach(sel => {
         const idx = sel.dataset.idx;
-        fillCatOptions(document.getElementById('cat_' + idx), sel.value);
+        const catSel = document.getElementById('cat_' + idx);
+        fillCatOptions(catSel, sel.value, catSel.dataset.sugestao);
     });
 </script>
 {% endif %}

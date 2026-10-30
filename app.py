@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
 from flask_login import (LoginManager, login_user, logout_user,
                          login_required, current_user)
 from flask_wtf.csrf import CSRFProtect, CSRFError
@@ -9,7 +9,9 @@ from sqlalchemy import extract, func
 from sqlalchemy.exc import IntegrityError
 from urllib.parse import urlsplit, urlunsplit
 from functools import wraps
+from zoneinfo import ZoneInfo
 import os, csv, io, re, json, math, secrets
+import voz
 
 # ── App & DB ──────────────────────────────────────────────────────────────────
 # Modo dev: `python app.py` ou FLASK_DEBUG=1. Fora dele, a configuração é obrigatória.
@@ -280,8 +282,14 @@ def parse_csv_generic(raw):
 MESES = {1:'Janeiro', 2:'Fevereiro', 3:'Março', 4:'Abril', 5:'Maio', 6:'Junho',
          7:'Julho', 8:'Agosto', 9:'Setembro', 10:'Outubro', 11:'Novembro', 12:'Dezembro'}
 
+# Datas do usuário seguem o horário de Brasília (o servidor na Vercel roda em UTC)
+FUSO = ZoneInfo(os.environ.get('APP_TIMEZONE', 'America/Sao_Paulo'))
+
+def _hoje():
+    return datetime.now(FUSO).date()
+
 def _get_periodo():
-    hoje = datetime.now()
+    hoje = _hoje()
     return max(1, min(12, request.args.get('mes', hoje.month, type=int))), \
            request.args.get('ano', hoje.year, type=int)
 
@@ -650,7 +658,8 @@ def index():
     cats_map = {}
     for l in dados:
         if l.tipo == 'Despesa' and l.pago:
-            cats_map[l.categoria] = cats_map.get(l.categoria, 0) + l.valor
+            nome = l.categoria or 'Sem categoria'
+            cats_map[nome] = cats_map.get(nome, 0) + l.valor
 
     return render_template('dashboard.html',
                            rec_real=rec_real, des_real=des_real,
@@ -676,8 +685,8 @@ def lancamentos():
                            dados=dados, categorias_select=_cats_select(current_user.id),
                            mes_atual=mes, ano_atual=ano, nome_mes=MESES[mes],
                            prev_mes=pm, prev_ano=pa, next_mes=nm, next_ano=na,
-                           hoje=datetime.now().strftime('%Y-%m-%d'),
-                           hoje_date=datetime.now().date())
+                           hoje=_hoje().isoformat(),
+                           hoje_date=_hoje())
 
 @app.route('/add', methods=['POST'])
 @login_required
@@ -816,7 +825,7 @@ def relatorios():
         flash('Crie uma conta financeira primeiro.', 'error')
         return redirect(url_for('contas'))
 
-    ano = request.args.get('ano', datetime.now().year, type=int)
+    ano = request.args.get('ano', _hoje().year, type=int)
     dados = Lancamento.query.filter(
         extract('year', Lancamento.data_vencimento) == ano,
         Lancamento.conta_id == conta.id
@@ -839,7 +848,7 @@ def relatorios():
     total_des = sum(r['despesa'] for r in resumo)
     return render_template('relatorios.html', resumo=resumo, ano_atual=ano,
                            total_rec=total_rec, total_des=total_des,
-                           anos_disponiveis=list(range(datetime.now().year, datetime.now().year - 5, -1)))
+                           anos_disponiveis=list(range(_hoje().year, _hoje().year - 5, -1)))
 
 # ── Importar extrato ──────────────────────────────────────────────────────────
 @app.route('/importar', methods=['GET', 'POST'])
@@ -865,9 +874,12 @@ def importar():
             flash('Nenhuma transação encontrada no arquivo.', 'error')
             return redirect(url_for('importar'))
         arquivo_nome = arq.filename
+    cats = _cats_select(current_user.id)
+    for t in transacoes or []:
+        t['categoria'] = voz.sugerir_categoria(t['descricao'], cats.get(t['tipo'], []))
     return render_template('importar.html', transacoes=transacoes,
                            arquivo_nome=arquivo_nome,
-                           categorias_select=_cats_select(current_user.id))
+                           categorias_select=cats)
 
 @app.route('/importar/confirmar', methods=['POST'])
 @login_required
@@ -911,6 +923,21 @@ def importar_confirmar():
     else:
         flash('Nenhum lançamento selecionado.', 'error')
     return redirect(url_for('lancamentos'))
+
+# ── Lançamento por voz ────────────────────────────────────────────────────────
+@app.route('/voz/interpretar', methods=['POST'])
+@login_required
+def voz_interpretar():
+    """Recebe o texto reconhecido e devolve os campos sugeridos; quem salva é o /add,
+    depois que o usuário confirma."""
+    texto = str((request.get_json(silent=True) or {}).get('texto', '')).strip()[:500]
+    if not texto:
+        return jsonify(erro='Não ouvi nada. Tente de novo.'), 400
+    cats = _cats_select(current_user.id)
+    resultado = voz.interpretar(texto, _hoje(), cats)
+    conta = _get_conta()
+    return jsonify({**resultado, 'texto': texto, 'categorias': cats,
+                    'conta': conta.nome if conta else None})
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1')
