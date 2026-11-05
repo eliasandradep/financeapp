@@ -105,6 +105,7 @@
                     <th>TIPO</th>
                     <th style="text-align:right;">VALOR</th>
                     <th>CATEGORIA</th>
+                    <th>FORMA</th>
                 </tr>
             </thead>
             <tbody>
@@ -139,6 +140,15 @@
                                 id="cat_{{ loop.index0 }}"
                                 data-sugestao="{{ t.categoria }}"
                                 style="padding:6px 8px; font-size:0.82rem; width:100%; min-width:130px;">
+                        </select>
+                    </td>
+                    <td data-label="Forma">
+                        <select name="forma_{{ loop.index0 }}" aria-label="Forma de pagamento ou recebimento"
+                                style="padding:6px 8px; font-size:0.82rem; width:100%; min-width:130px;">
+                            <option value="">— Não informada —</option>
+                            {% for f in formas_pagamento %}
+                            <option value="{{ f }}" {{ 'selected' if f == t.forma_pagamento }}>{{ f }}</option>
+                            {% endfor %}
                         </select>
                     </td>
                 </tr>

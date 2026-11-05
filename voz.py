@@ -242,6 +242,48 @@ def sugerir_categoria(texto, nomes):
     """Sugere uma categoria para um texto livre (ex.: descrição de extrato); '' se nenhuma servir."""
     return _sugerir_categoria(_sem_acento((texto or '').lower()), nomes)
 
+
+# ── Forma de pagamento / recebimento ──────────────────────────────────────────
+FORMAS_PAGAMENTO = ['Dinheiro', 'Pix', 'Cartão de Crédito', 'Cartão de Débito']
+
+_PREP = r'(?:\b(?:no|na|pelo|pela|via|com|em|por|um|uma|o|a)\s+)*'   # "no", "pelo", "um"... antes
+_PREP_OBRIG = r'(?:\b(?:no|na|pelo|pela|via|com|em)\s+)+'            # "crédito" sozinho não basta
+_PADROES_FORMA = [
+    ('Cartão de Crédito', re.compile(
+        rf'{_PREP}\b{_acc("cartao")}\s+(?:de\s+)?{_acc("credito")}\b|{_PREP_OBRIG}{_acc("credito")}\b')),
+    ('Cartão de Débito', re.compile(
+        rf'{_PREP}\b{_acc("cartao")}\s+(?:de\s+)?{_acc("debito")}\b|'
+        rf'{_PREP_OBRIG}{_acc("debito")}\b(?!\s+{_acc("automatico")})')),
+    ('Pix', re.compile(rf'{_PREP}\bpix\b')),
+    ('Dinheiro', re.compile(
+        rf'{_PREP_OBRIG}dinheiro\b|\bdinheiro vivo\b|{_PREP_OBRIG}{_acc("especie")}\b')),
+]
+
+def _extrair_forma(t):
+    """Forma de pagamento citada na frase: (forma, span) ou ('', None)."""
+    achados = [(m.start(), forma, m.span()) for forma, rx in _PADROES_FORMA if (m := rx.search(t))]
+    if not achados:
+        return '', None
+    _, forma, span = min(achados)        # a primeira citada vence
+    return forma, span
+
+def sugerir_forma_pagamento(texto):
+    """Forma de pagamento a partir de uma descrição de extrato; '' se não der para saber."""
+    t = (texto or '').lower()
+    forma, _ = _extrair_forma(' ' + t + ' ')
+    if forma:
+        return forma
+    n = _sem_acento(t)
+    if re.search(r'\bpix\b', n):
+        return 'Pix'
+    if re.search(r'\bcartao\b', n) and re.search(r'\bcredito\b', n):
+        return 'Cartão de Crédito'
+    if re.search(r'\b(?:cartao|compra|deb)\b', n) and re.search(r'\bdebito\b(?!\s+automatico)', n):
+        return 'Cartão de Débito'
+    if re.search(r'\bsaque\b', n):
+        return 'Dinheiro'
+    return ''
+
 def _limpar_descricao(t):
     palavras = t.split()
     while palavras and _sem_acento(palavras[0]) in _CONECTIVOS:
@@ -292,6 +334,8 @@ def interpretar(texto, hoje, categorias):
             avisos.append('Não ficou claro se é gasto ou ganho; considerei gasto.')
 
     pago = not (_RE_PENDENTE.search(t) or data_l > hoje)
+    forma, span = _extrair_forma(t)
+    t = _remover(t, span)
     texto_norm = _sem_acento(t)
     categoria = _sugerir_categoria(texto_norm, categorias.get(tipo, []))
 
@@ -301,4 +345,4 @@ def interpretar(texto, hoje, categorias):
         avisos.append('Não identifiquei a descrição. Ajuste abaixo.')
 
     return {'tipo': tipo, 'valor': valor, 'data': data_l.isoformat(), 'descricao': descricao,
-            'categoria': categoria, 'pago': pago, 'avisos': avisos}
+            'categoria': categoria, 'pago': pago, 'forma_pagamento': forma, 'avisos': avisos}

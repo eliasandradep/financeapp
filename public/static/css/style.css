@@ -539,6 +539,8 @@ tr:last-child td { border-bottom: none; }
 /* FORMULÁRIO DE NOVO LANÇAMENTO */
 .form-lanc .f-desc { flex: 2; min-width: 160px; }
 .form-lanc .f-cat  { flex: 1.5; }
+.form-lanc .f-forma { flex: 1.3; }
+.td-forma { color: var(--text-muted); font-size: 0.85rem; white-space: nowrap; }
 .form-lanc .f-valor input[type="text"] { width: 90px; }
 .form-lanc .f-pago { font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
 
@@ -632,8 +634,9 @@ tr:last-child td { border-bottom: none; }
     .form-lanc .f-desc  { order: 3; grid-column: 1 / -1; }
     .form-lanc .f-tipo  { order: 4; }
     .form-lanc .f-cat   { order: 5; }
-    .form-lanc .f-pago  { order: 6; font-size: 0.9rem; }
-    .form-lanc .f-btn   { order: 7; justify-content: center; }
+    .form-lanc .f-forma { order: 6; grid-column: 1 / -1; }
+    .form-lanc .f-pago  { order: 7; font-size: 0.9rem; }
+    .form-lanc .f-btn   { order: 8; justify-content: center; }
     .form-lanc .f-valor input[type="text"] { width: 100%; }
 
     /* Tabelas viram cartões empilhados (rótulo vem de data-label) */

@@ -56,6 +56,7 @@ class Lancamento(db.Model):
     tipo            = db.Column(db.String(20),  nullable=False)
     valor           = db.Column(db.Float,   nullable=False)
     pago            = db.Column(db.Boolean, default=False)
+    forma_pagamento = db.Column(db.String(30))   # Dinheiro, Pix, Cartão de Crédito/Débito; None = não informado
     conta_id        = db.Column(db.Integer, db.ForeignKey('conta.id'), nullable=False)
 
 

@@ -5,8 +5,8 @@ from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.security import generate_password_hash, check_password_hash
 from models import db, Lancamento, Categoria, Usuario, Conta, TentativaLogin
 from datetime import datetime, date, timedelta, timezone
-from sqlalchemy import extract, func
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import extract, func, inspect as sa_inspect, text
+from sqlalchemy.exc import IntegrityError, DBAPIError
 from urllib.parse import urlsplit, urlunsplit
 from functools import wraps
 from zoneinfo import ZoneInfo
@@ -73,9 +73,24 @@ def _seed_usuario(u):
     for nome, tipo in CATS_PADRAO:
         db.session.add(Categoria(nome=nome, tipo=tipo, usuario_id=u.id))
 
+def _migrar_schema():
+    """Migrações aditivas (o projeto não usa ferramenta de migração): só adiciona colunas
+    novas em tabelas que já existem; create_all não faz isso."""
+    colunas = {c['name'] for c in sa_inspect(db.engine).get_columns('lancamento')}
+    if 'forma_pagamento' in colunas:
+        return
+    try:
+        with db.engine.begin() as conn:
+            conn.execute(text('ALTER TABLE lancamento ADD COLUMN forma_pagamento VARCHAR(30)'))
+    except DBAPIError:
+        # Outra instância pode ter adicionado a coluna ao mesmo tempo; só falha se ela não existir.
+        if 'forma_pagamento' not in {c['name'] for c in sa_inspect(db.engine).get_columns('lancamento')}:
+            raise
+
 def _init_db():
     """Cria tabelas que faltam (nunca apaga dados) e o primeiro admin, se não houver nenhum."""
     db.create_all()
+    _migrar_schema()
     if Usuario.query.filter_by(is_admin=True).first():
         return
     username = os.environ.get('ADMIN_USERNAME', 'Admin')
@@ -139,8 +154,9 @@ def inject_conta():
     if current_user.is_authenticated:
         contas = Conta.query.filter_by(usuario_id=current_user.id).order_by(Conta.nome).all()
         return {'user_contas': contas, 'conta_atual': _get_conta(),
-                'conta_tipo_icon': conta_tipo_icon}
-    return {'user_contas': [], 'conta_atual': None, 'conta_tipo_icon': conta_tipo_icon}
+                'conta_tipo_icon': conta_tipo_icon, 'formas_pagamento': voz.FORMAS_PAGAMENTO}
+    return {'user_contas': [], 'conta_atual': None, 'conta_tipo_icon': conta_tipo_icon,
+            'formas_pagamento': voz.FORMAS_PAGAMENTO}
 
 # ── Decoradores ───────────────────────────────────────────────────────────────
 def admin_required(f):
@@ -358,8 +374,11 @@ def _validar_lancamento(form):
     data_obj = _parse_data(form.get('data'))
     if not data_obj:
         return None, 'Data inválida.'
+    forma = form.get('forma_pagamento', '').strip()
+    if forma and forma not in voz.FORMAS_PAGAMENTO:
+        return None, 'Forma de pagamento inválida.'
     return {'data_vencimento': data_obj, 'descricao': descricao[:200], 'categoria': categoria,
-            'tipo': tipo, 'valor': valor, 'pago': 'pago' in form}, None
+            'tipo': tipo, 'valor': valor, 'pago': 'pago' in form, 'forma_pagamento': forma or None}, None
 
 def _redirect_seguro(alvo, padrao):
     """Redireciona só para URLs do próprio site (evita open redirect)."""
@@ -877,6 +896,7 @@ def importar():
     cats = _cats_select(current_user.id)
     for t in transacoes or []:
         t['categoria'] = voz.sugerir_categoria(t['descricao'], cats.get(t['tipo'], []))
+        t['forma_pagamento'] = voz.sugerir_forma_pagamento(t['descricao'])
     return render_template('importar.html', transacoes=transacoes,
                            arquivo_nome=arquivo_nome,
                            categorias_select=cats)
@@ -907,13 +927,16 @@ def importar_confirmar():
         valor     = _parse_valor(t.get('valor'))
         tipo      = request.form.get(f'tipo_{i}', t.get('tipo', 'Despesa'))
         categoria = request.form.get(f'categoria_{i}', '').strip()
+        forma     = request.form.get(f'forma_{i}', '').strip()
         if (not data_obj or valor is None or tipo not in ('Receita', 'Despesa')
-                or not _categoria_valida(categoria, tipo, cats)):
+                or not _categoria_valida(categoria, tipo, cats)
+                or (forma and forma not in voz.FORMAS_PAGAMENTO)):
             continue
         db.session.add(Lancamento(
             data_vencimento=data_obj,
             descricao=str(t.get('descricao') or 'Sem descrição')[:200],
-            categoria=categoria, tipo=tipo, valor=valor, pago=True, conta_id=conta.id
+            categoria=categoria, tipo=tipo, valor=valor, pago=True, conta_id=conta.id,
+            forma_pagamento=forma or None
         ))
         importados += 1
 

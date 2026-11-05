@@ -20,11 +20,15 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input name="data" type="date" required value="{{ hoje }}" class="f-data" aria-label="Data de vencimento">
         <input name="descricao" placeholder="Descrição (ex: Aluguel)" required class="f-desc">
-        <select name="tipo" id="tipo_select" class="f-tipo" onchange="updateCats('tipo_select', 'cat_select')">
+        <select name="tipo" id="tipo_select" class="f-tipo" onchange="updateCats('tipo_select', 'cat_select'); rotuloForma(this.value, 'add_forma')">
             <option value="Despesa">Despesa</option>
             <option value="Receita">Receita</option>
         </select>
         <select name="categoria" id="cat_select" required class="f-cat" aria-label="Categoria"></select>
+        <select name="forma_pagamento" id="add_forma" class="f-forma" aria-label="Forma de pagamento">
+            <option value="">Forma de pagamento</option>
+            {% for f in formas_pagamento %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
+        </select>
         <div class="valor-wrap f-valor">
             <span>R$</span>
             <input id="add_valor_display" type="text" inputmode="numeric" placeholder="0,00"
@@ -47,6 +51,7 @@
                 <th>DESCRIÇÃO</th>
                 <th>CATEGORIA</th>
                 <th>VALOR</th>
+                <th>FORMA</th>
                 <th>STATUS</th>
                 <th>AÇÕES</th>
             </tr>
@@ -64,6 +69,7 @@
                 <td data-label="Valor" style="color: {{ '#22c55e' if d.tipo == 'Receita' else '#ef4444' }}; font-weight: bold;">
                     {{ d.valor | brl }}
                 </td>
+                <td data-label="Forma" class="td-forma">{{ d.forma_pagamento or '—' }}</td>
                 <td data-label="Status">
                     <a href="/quitar/{{ d.id }}" data-post
                        class="status-badge {{ 'status-pago' if d.pago else 'status-pendente' }}"
@@ -85,7 +91,8 @@
                            {{ d.tipo|tojson }},
                            {{ d.categoria|tojson }},
                            {{ d.valor|tojson }},
-                           {{ d.pago|tojson }}
+                           {{ d.pago|tojson }},
+                           {{ (d.forma_pagamento or '')|tojson }}
                        )'>
                         <i class="fa-solid fa-pen-to-square"></i>
                     </a>
@@ -98,7 +105,7 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="6">
+                <td colspan="7">
                     <div class="empty-state">
                         <i class="fa-solid fa-inbox"></i>
                         <p>Nenhum lançamento em {{ nome_mes }} {{ ano_atual }}.</p>
@@ -139,7 +146,7 @@
 
             <div class="form-group">
                 <label>Tipo</label>
-                <select name="tipo" id="edit_tipo" onchange="updateCats('edit_tipo', 'edit_categoria')">
+                <select name="tipo" id="edit_tipo" onchange="updateCats('edit_tipo', 'edit_categoria'); rotuloForma(this.value, 'edit_forma')">
                     <option value="Despesa">Despesa</option>
                     <option value="Receita">Receita</option>
                 </select>
@@ -148,6 +155,14 @@
             <div class="form-group">
                 <label>Categoria</label>
                 <select name="categoria" id="edit_categoria"></select>
+            </div>
+
+            <div class="form-group">
+                <label for="edit_forma">Forma de pagamento</label>
+                <select name="forma_pagamento" id="edit_forma">
+                    <option value="">— Não informada —</option>
+                    {% for f in formas_pagamento %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
+                </select>
             </div>
 
             <div class="form-group form-full">
@@ -231,7 +246,7 @@
     }
 
     // --- MODAL EDIÇÃO ---
-    function openEditLancamento(id, data, desc, tipo, cat, valor, pago) {
+    function openEditLancamento(id, data, desc, tipo, cat, valor, pago, forma) {
         document.getElementById('editLancamentoForm').action = '/edit/' + id;
         document.getElementById('edit_data').value = data;
         document.getElementById('edit_descricao').value = desc;
@@ -243,6 +258,8 @@
         document.getElementById('edit_valor').value = parseFloat(valor).toFixed(2);
 
         updateCats('edit_tipo', 'edit_categoria', cat);
+        document.getElementById('edit_forma').value = forma || '';
+        rotuloForma(tipo, 'edit_forma');
         document.getElementById('editLancamentoModal').style.display = 'flex';
     }
 
@@ -259,7 +276,10 @@
         if (!validateValor('edit_valor', 'edit_valor_display')) e.preventDefault();
     });
 
-    window.onload = () => updateCats('tipo_select', 'cat_select');
+    window.onload = () => {
+        updateCats('tipo_select', 'cat_select');
+        rotuloForma(document.getElementById('tipo_select').value, 'add_forma');
+    };
 
     window.onclick = function(event) {
         if (event.target == document.getElementById('editLancamentoModal')) {

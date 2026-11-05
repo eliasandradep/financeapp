@@ -132,6 +132,8 @@
         $('voz-ouvido').textContent = d.texto;
         $('voz-tipo').value = d.tipo;
         preencherCategorias(d.tipo, d.categoria);
+        $('voz-forma').value = d.forma_pagamento || '';
+        rotuloForma(d.tipo, 'voz-forma');
         $('voz-data').value = d.data;
         $('voz-descricao').value = d.descricao;
         $('voz-pago').checked = !!d.pago;
@@ -159,7 +161,10 @@
         $('voz-valor').value = (cents / 100).toFixed(2);
     });
 
-    $('voz-tipo').addEventListener('change', e => preencherCategorias(e.target.value, ''));
+    $('voz-tipo').addEventListener('change', e => {
+        preencherCategorias(e.target.value, '');
+        rotuloForma(e.target.value, 'voz-forma');
+    });
 
     form.addEventListener('submit', e => {
         const display = $('voz-valor-display');

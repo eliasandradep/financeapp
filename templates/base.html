@@ -194,6 +194,13 @@
                 <label for="voz-categoria">Categoria</label>
                 <select name="categoria" id="voz-categoria"></select>
             </div>
+            <div class="form-group">
+                <label for="voz-forma">Forma de pagamento</label>
+                <select name="forma_pagamento" id="voz-forma">
+                    <option value="">— Não informada —</option>
+                    {% for f in formas_pagamento %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
+                </select>
+            </div>
             <div class="form-group form-full">
                 <label for="voz-descricao">Descrição</label>
                 <input type="text" name="descricao" id="voz-descricao" maxlength="200" required>
@@ -249,6 +256,17 @@
         const open = dd.style.display !== 'none';
         dd.style.display = open ? 'none' : 'block';
         if (ch) ch.style.transform = open ? '' : 'rotate(180deg)';
+    }
+
+    // Rótulo do campo de forma: "pagamento" para despesa, "recebimento" para receita
+    function rotuloForma(tipo, formaId) {
+        const sel = document.getElementById(formaId);
+        if (!sel) return;
+        const txt = tipo === 'Receita' ? 'Forma de recebimento' : 'Forma de pagamento';
+        const lbl = document.querySelector('label[for="' + formaId + '"]');
+        if (lbl) lbl.textContent = txt;
+        sel.options[0].text = lbl ? '— Não informada —' : txt;   // sem rótulo visível, a 1ª opção faz o papel
+        sel.setAttribute('aria-label', txt);
     }
 
     // Menu lateral como gaveta no celular
