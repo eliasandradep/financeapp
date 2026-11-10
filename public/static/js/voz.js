@@ -9,7 +9,7 @@
     const mic = $('voz-mic'), status = $('voz-status'), campoTexto = $('voz-texto');
     const csrf = form.querySelector('[name=csrf_token]').value;
 
-    const DICA = 'Ex.: "gastei R$ 9,90 com barrinha de cereal" ou "ontem recebi 25 reais de uma venda".';
+    const DICA = 'Ex.: "ontem gastei R$ 45 no mercado, no pix, pelo Nubank" ou "recebi 25 reais de uma venda".';
     let rec = null, ouvindo = false, erroVoz = false, categorias = { Receita: [], Despesa: [] };
 
     function setStatus(msg, erro) {
@@ -139,6 +139,11 @@
         $('voz-pago').checked = !!d.pago;
         $('voz-valor-display').value = d.valor != null ? formatarBRL(d.valor) : '';
         $('voz-valor').value = d.valor != null ? Number(d.valor).toFixed(2) : '';
+        if (d.conta_id) $('voz-conta').value = String(d.conta_id);
+
+        // Destaca o que não foi identificado; o destaque some quando o campo é preenchido
+        const faltando = d.nao_identificados || [];
+        Object.entries(CAMPOS).forEach(([nome, id]) => $(id).classList.toggle('voz-pendente', faltando.includes(nome)));
 
         const avisos = $('voz-avisos');
         avisos.innerHTML = '';
@@ -151,8 +156,18 @@
 
         etapaOuvir.hidden = true;
         form.hidden = false;
-        (d.valor == null ? $('voz-valor-display') : form.querySelector('[type=submit]')).focus();
+        // Cursor no primeiro campo obrigatório vazio; se nada faltar, no Confirmar
+        const obrigatorio = ['tipo', 'valor', 'descrição'].find(n => faltando.includes(n));
+        (obrigatorio ? $(CAMPOS[obrigatorio]) : form.querySelector('[type=submit]')).focus();
     }
+
+    const CAMPOS = { 'tipo': 'voz-tipo', 'valor': 'voz-valor-display', 'descrição': 'voz-descricao',
+                     'categoria': 'voz-categoria', 'forma de pagamento': 'voz-forma' };
+    Object.values(CAMPOS).forEach(id => {
+        const limpar = e => { if (e.target.value) e.target.classList.remove('voz-pendente'); };
+        $(id).addEventListener('input', limpar);
+        $(id).addEventListener('change', limpar);
+    });
 
     // Máscara monetária: digitar "990" vira "9,90"
     $('voz-valor-display').addEventListener('input', e => {

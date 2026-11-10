@@ -51,7 +51,7 @@ CASOS = [
     ('vou receber 300 reais de um freela', dict(tipo='Receita', pago=False)),
     # Informação faltando
     ('barrinha de cereal', dict(valor=None, tipo='Despesa')),
-    ('gastei 10 reais', dict(valor=10.0, descricao='Lançamento por voz')),
+    ('gastei 10 reais', dict(valor=10.0, descricao='')),
     ('recebi o pagamento de 800 reais do cliente',
      dict(tipo='Receita', valor=800.0, descricao='Pagamento do cliente')),
     # Forma de pagamento
@@ -71,6 +71,61 @@ CASOS = [
 def test_interpretar(frase, esperado):
     r = voz.interpretar(frase, HOJE, CATS)
     assert {k: r[k] for k in esperado} == esperado
+
+
+CATS_COMPLETAS = {
+    'Receita': ['Salário', 'Distribuição de Lucros', 'Aluguéis', 'Outras Receitas'],
+    'Despesa': ['Moradia', 'Alimentação', 'Transporte', 'Educação', 'Investimentos', 'Saúde', 'Lazer',
+                'Outras Despesas'],
+}
+CONTAS = [{'id': 1, 'nome': 'Conta Principal', 'banco': None},
+          {'id': 2, 'nome': 'Nubank Cartão', 'banco': 'Nubank'},
+          {'id': 3, 'nome': 'Santander', 'banco': 'Santander'},
+          {'id': 4, 'nome': 'Carteira', 'banco': None}]
+
+CASOS_COMPLETOS = [
+    # Todos os campos de uma vez
+    ('ontem gastei R$ 45 no mercado no pix pela conta Santander',
+     dict(tipo='Despesa', valor=45.0, data='2026-10-15', descricao='Mercado', categoria='Alimentação',
+          forma_pagamento='Pix', conta_id=3, pago=True, nao_identificados=[])),
+    ('paguei 120 reais de gasolina no cartão de crédito do nubank',
+     dict(categoria='Transporte', forma_pagamento='Cartão de Crédito', conta_id=2, descricao='Gasolina')),
+    ('recebi 2000 reais de aluguel do inquilino na conta principal',
+     dict(tipo='Receita', categoria='Aluguéis', conta_id=1)),
+    # "apliquei" não diz o tipo, mas só Investimentos (despesa) combina com a frase
+    ('apliquei 500 reais no tesouro direto', dict(tipo='Despesa', categoria='Investimentos', valor=500.0)),
+    ('recebi 3000 de distribuição de lucros', dict(tipo='Receita', categoria='Distribuição de Lucros')),
+    # Tipo deduzido pela categoria quando não há "gastei/recebi"
+    ('barrinha de cereal 9,90 no débito', dict(tipo='Despesa', categoria='Alimentação',
+                                               forma_pagamento='Cartão de Débito')),
+    # Ambíguo (aluguel pode ser Moradia ou Aluguéis): tipo e categoria ficam em branco
+    ('aluguel 1500 reais', dict(tipo='', categoria='', valor=1500.0)),
+    # Conta: sem preposição não conta; nome genérico não confunde
+    ('comprei uma carteira de couro por 80 reais', dict(conta_id=None, descricao='Comprei uma carteira de couro')),
+    ('gastei 20 reais em dinheiro da carteira', dict(conta_id=4, forma_pagamento='Dinheiro')),
+    ('gastei 20 reais no almoço', dict(conta_id=None)),
+    # Nada identificável além do texto
+    ('isso aqui não é um lançamento', dict(tipo='', valor=None, categoria='', forma_pagamento='')),
+]
+
+
+@pytest.mark.parametrize('frase,esperado', CASOS_COMPLETOS, ids=[c[0][:45] for c in CASOS_COMPLETOS])
+def test_interpretar_todos_os_campos(frase, esperado):
+    r = voz.interpretar(frase, HOJE, CATS_COMPLETAS, CONTAS)
+    assert {k: r[k] for k in esperado} == esperado
+
+
+def test_conta_ambigua_fica_em_branco():
+    contas = [{'id': 1, 'nome': 'Nubank Conta', 'banco': 'Nubank'},
+              {'id': 2, 'nome': 'Nubank Cartão', 'banco': 'Nubank'}]
+    assert voz.interpretar('gastei 10 reais no nubank', HOJE, CATS, contas)['conta_id'] is None
+    assert voz.interpretar('gastei 10 reais no nubank cartão', HOJE, CATS, contas)['conta_id'] == 2
+
+
+def test_aviso_lista_o_que_faltou():
+    r = voz.interpretar('aluguel 1500 reais', HOJE, CATS_COMPLETAS, CONTAS)
+    assert r['nao_identificados'] == ['tipo', 'categoria', 'forma de pagamento']
+    assert r['avisos'] == ['Não identifiquei: tipo, categoria, forma de pagamento. Preencha abaixo, se quiser.']
 
 
 def test_avisos_quando_falta_informacao():

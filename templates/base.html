@@ -64,6 +64,10 @@
 
     <!-- Navegação principal (rola sozinha; o rodapé do usuário fica sempre visível) -->
     <nav class="sidebar-nav">
+    <!-- Só aparece quando o navegador oferece a instalação (Android/Chrome) -->
+    <button type="button" class="nav-item nav-instalar" id="btn-instalar" hidden>
+        <i class="fa-solid fa-download"></i> Instalar app
+    </button>
     <a href="/" class="nav-item {{ 'active' if request.path == '/' }}">
         <i class="fa-solid fa-chart-pie"></i> Dashboard
     </a>
@@ -173,7 +177,8 @@
 
             <div class="form-group">
                 <label for="voz-tipo">Tipo</label>
-                <select name="tipo" id="voz-tipo">
+                <select name="tipo" id="voz-tipo" required>
+                    <option value="">— Selecione —</option>
                     <option value="Despesa">Despesa</option>
                     <option value="Receita">Receita</option>
                 </select>
@@ -209,9 +214,14 @@
                 <input type="checkbox" name="pago" id="voz-pago">
                 <label for="voz-pago">Já quitado / recebido?</label>
             </div>
-            <p class="form-full voz-conta">
-                <i class="fa-solid fa-building-columns"></i> Conta: <strong>{{ conta_atual.nome }}</strong>
-            </p>
+            <div class="form-group form-full">
+                <label for="voz-conta">Conta</label>
+                <select name="conta_id" id="voz-conta">
+                    {% for c in user_contas %}
+                    <option value="{{ c.id }}" {{ 'selected' if c.id == conta_atual.id }}>{{ c.nome }}{% if c.banco %} · {{ c.banco }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
             <div class="modal-actions">
                 <button type="submit" class="btn-action"><i class="fa-solid fa-check"></i> Confirmar</button>
                 <button type="button" class="btn-cancel" id="voz-de-novo"><i class="fa-solid fa-microphone"></i> Falar de novo</button>
@@ -257,6 +267,22 @@
         dd.style.display = open ? 'none' : 'block';
         if (ch) ch.style.transform = open ? '' : 'rotate(180deg)';
     }
+
+    // Instalação como app (Android/Chrome): guarda o convite do navegador e mostra o botão
+    let convitePWA = null;
+    window.addEventListener('beforeinstallprompt', e => {
+        e.preventDefault();
+        convitePWA = e;
+        document.getElementById('btn-instalar').hidden = false;
+    });
+    document.getElementById('btn-instalar').addEventListener('click', async () => {
+        if (!convitePWA) return;
+        convitePWA.prompt();
+        await convitePWA.userChoice;
+        convitePWA = null;
+        document.getElementById('btn-instalar').hidden = true;
+    });
+    window.addEventListener('appinstalled', () => { document.getElementById('btn-instalar').hidden = true; });
 
     // Rótulo do campo de forma: "pagamento" para despesa, "recebimento" para receita
     function rotuloForma(tipo, formaId) {

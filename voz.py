@@ -221,6 +221,11 @@ _SUGESTOES = {
     'lazer':       ['cinema', 'show', 'viagem', 'bar', 'passeio', 'streaming', 'netflix', 'spotify', 'jogo'],
     'vestuario':   ['roupa', 'sapato', 'tenis', 'camisa', 'calca', 'vestido'],
     'salario':     ['salario', 'pagamento do mes', 'holerite'],
+    'investimentos': ['investimento', 'investimentos', 'investi', 'aporte', 'apliquei', 'aplicacao',
+                      'tesouro direto', 'tesouro', 'cdb', 'lci', 'lca', 'acoes', 'fundo imobiliario',
+                      'fii', 'previdencia'],
+    'distribuicao de lucros': ['lucros', 'lucro', 'dividendos', 'distribuicao', 'pro labore', 'prolabore'],
+    'alugueis':    ['aluguel', 'alugueis', 'inquilino', 'locacao'],
     'vendas':      ['venda', 'vendi', 'vendemos', 'vendendo', 'vendas'],
     'freelance':   ['freela', 'freelance', 'projeto', 'servico'],
 }
@@ -304,9 +309,39 @@ def _remover(t, span, conectivo_antes=False):
     return antes + ' ' + t[span[1]:]
 
 
-def interpretar(texto, hoje, categorias):
-    """texto: frase ouvida; hoje: date local; categorias: {'Receita': [...], 'Despesa': [...]}.
-    Retorna dict com tipo, valor (ou None), data (ISO), descricao, categoria, pago e avisos."""
+# ── Conta ─────────────────────────────────────────────────────────────────────
+_GENERICOS_CONTA = {'conta', 'corrente', 'cartao', 'credito', 'debito', 'poupanca', 'banco',
+                    'de', 'da', 'do', 'e', 'meu', 'minha'}
+
+def _extrair_conta(t, contas):
+    """Conta citada na frase ("no Nubank", "na conta Santander", "pelo cartão do Itaú").
+    contas: [{'id', 'nome', 'banco'}]. Retorna (id, span) ou (None, None) se nenhuma ou se for ambíguo.
+    Exige preposição antes do nome, para "comprei uma carteira" não virar a conta "Carteira"."""
+    candidatos = []
+    for c in contas or []:
+        termos = {c['nome']} | ({c['banco']} if c.get('banco') else set())
+        termos |= {w for w in c['nome'].split()
+                   if len(w) >= 4 and _sem_acento(w.lower()) not in _GENERICOS_CONTA}
+        for termo in termos:
+            nucleo = _acc(_sem_acento(termo.lower().strip())).replace(r'\ ', r'\s+')
+            rx = (rf'\b(?:no|na|pelo|pela|da|do|em|com(?:\s+[oa])?)\s+'
+                  rf'(?:(?:conta|{_acc("cartao")}|banco)\s+(?:d[oa]\s+)?)?{nucleo}\b')
+            for m in re.finditer(rx, t):
+                candidatos.append((len(termo), m.start(), c['id'], m.span()))
+    if not candidatos:
+        return None, None
+    candidatos.sort(key=lambda x: (-x[0], x[1]))        # termo mais longo vence
+    melhor = candidatos[0][0]
+    if len({c[2] for c in candidatos if c[0] == melhor}) > 1:
+        return None, None                                # "no Nubank" com duas contas Nubank
+    return candidatos[0][2], candidatos[0][3]
+
+
+def interpretar(texto, hoje, categorias, contas=None):
+    """texto: frase ouvida; hoje: date local; categorias: {'Receita': [...], 'Despesa': [...]};
+    contas: [{'id', 'nome', 'banco'}] do usuário.
+    O que não for identificado volta vazio ('' ou None) para o usuário completar na confirmação;
+    a exceção é a data, que sem menção fica com o dia do comando."""
     t = ' ' + (texto or '').lower() + ' '
     # Pontuação vira espaço, exceto vírgula/ponto entre dígitos ("9,90", "1.250") e a barra das datas
     t = re.sub(r'(?<!\d)[.,]|[.,](?!\d)', ' ', t)
@@ -322,27 +357,40 @@ def interpretar(texto, hoje, categorias):
 
     valor, span = _extrair_valor(t)
     t = _remover(t, span, conectivo_antes=True)
-    if valor is None:
-        avisos.append('Não identifiquei o valor. Preencha abaixo.')
 
     rec, desp = _RE_RECEITA.search(t), _RE_DESPESA.search(t)
     if rec and (not desp or rec.start() < desp.start()):
         tipo = 'Receita'
-    else:
+    elif desp:
         tipo = 'Despesa'
-        if not desp:
-            avisos.append('Não ficou claro se é gasto ou ganho; considerei gasto.')
+    else:
+        tipo = ''                       # decidido abaixo pela categoria, se possível
 
     pago = not (_RE_PENDENTE.search(t) or data_l > hoje)
+
+    conta_id, span = _extrair_conta(t, contas)
+    t = _remover(t, span)
     forma, span = _extrair_forma(t)
     t = _remover(t, span)
+
     texto_norm = _sem_acento(t)
-    categoria = _sugerir_categoria(texto_norm, categorias.get(tipo, []))
+    if tipo:
+        categoria = _sugerir_categoria(texto_norm, categorias.get(tipo, []))
+    else:
+        # Sem "gastei/recebi": a categoria pode indicar o tipo ("barrinha" -> Alimentação -> Despesa),
+        # desde que só um dos tipos tenha uma categoria compatível.
+        achadas = {tp: c for tp in ('Despesa', 'Receita')
+                   if (c := _sugerir_categoria(texto_norm, categorias.get(tp, [])))}
+        tipo, categoria = next(iter(achadas.items())) if len(achadas) == 1 else ('', '')
 
     descricao = _limpar_descricao(re.sub(r'\s+', ' ', _RE_RUIDO.sub(' ', t).replace('r$', ' ')))
-    if not descricao:
-        descricao = 'Lançamento por voz'
-        avisos.append('Não identifiquei a descrição. Ajuste abaixo.')
+
+    faltando = [nome for nome, vazio in [
+        ('tipo', not tipo), ('valor', valor is None), ('descrição', not descricao),
+        ('categoria', not categoria), ('forma de pagamento', not forma)] if vazio]
+    if faltando:
+        avisos.append('Não identifiquei: ' + ', '.join(faltando) + '. Preencha abaixo, se quiser.')
 
     return {'tipo': tipo, 'valor': valor, 'data': data_l.isoformat(), 'descricao': descricao,
-            'categoria': categoria, 'pago': pago, 'forma_pagamento': forma, 'avisos': avisos}
+            'categoria': categoria, 'pago': pago, 'forma_pagamento': forma, 'conta_id': conta_id,
+            'nao_identificados': faltando, 'avisos': avisos}

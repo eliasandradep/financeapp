@@ -60,8 +60,33 @@ def test_rota_de_voz_interpreta_e_usa_a_conta_do_usuario(app, novo_usuario, loga
     c = logar(novo_usuario())
     d = c.post('/voz/interpretar', json={'texto': 'gastei 30 reais no almoço no pix'}).get_json()
     assert (d['valor'], d['tipo'], d['forma_pagamento'], d['categoria']) == (30.0, 'Despesa', 'Pix', 'Alimentação')
-    assert d['conta'] == 'Conta Principal'
     assert c.post('/voz/interpretar', json={'texto': '  '}).status_code == 400
+
+
+def test_voz_reconhece_conta_e_add_respeita_dono(app, m, novo_usuario, logar, flashes):
+    u, outro = novo_usuario(), novo_usuario()
+    with app.app_context():
+        santander = m.Conta(nome='Santander', tipo='Corrente', banco='Santander', usuario_id=u.id)
+        m.db.session.add(santander)
+        m.db.session.commit()
+        sid = santander.id
+    c = logar(u)
+    # Conta citada na fala
+    d = c.post('/voz/interpretar', json={'texto': 'gastei 30 reais no mercado na conta santander'}).get_json()
+    assert d['conta_id'] == sid
+    # Nenhuma conta citada: vem a ativa
+    d = c.post('/voz/interpretar', json={'texto': 'gastei 30 reais no mercado'}).get_json()
+    assert d['conta_id'] == u.conta_id
+    # Confirmação gravando na outra conta do próprio usuário
+    c.post('/add', data={**BASE, 'descricao': 'NA-SANTANDER', 'conta_id': sid})
+    with app.app_context():
+        assert m.Lancamento.query.filter_by(descricao='NA-SANTANDER').first().conta_id == sid
+    assert 'Lançamento adicionado na conta "Santander".' in flashes(c)
+    # Conta de outro usuário é recusada
+    c.post('/add', data={**BASE, 'descricao': 'NA-CONTA-ALHEIA', 'conta_id': outro.conta_id})
+    assert 'Conta inválida.' in flashes(c)
+    with app.app_context():
+        assert m.Lancamento.query.filter_by(descricao='NA-CONTA-ALHEIA').first() is None
 
 
 # ── Importação ───────────────────────────────────────────────────────────────

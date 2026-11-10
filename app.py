@@ -1,4 +1,5 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import (Flask, render_template, request, redirect, url_for, flash, session, jsonify,
+                   send_from_directory)
 from flask_login import (LoginManager, login_user, logout_user,
                          login_required, current_user)
 from flask_wtf.csrf import CSRFProtect, CSRFError
@@ -130,7 +131,7 @@ def csrf_error(e):
 def check_primeiro_acesso():
     if request.endpoint is None:
         return
-    livres = {'login', 'logout', 'static', 'alterar_senha'}
+    livres = {'login', 'logout', 'static', 'alterar_senha', 'service_worker'}
     if (current_user.is_authenticated
             and current_user.primeiro_acesso
             and request.endpoint not in livres):
@@ -714,6 +715,13 @@ def add():
     if not conta:
         flash('Selecione uma conta primeiro.', 'error')
         return redirect(url_for('contas'))
+    # A confirmação por voz pode indicar outra conta do próprio usuário
+    conta_id = request.form.get('conta_id', type=int)
+    if conta_id and conta_id != conta.id:
+        conta = db.session.get(Conta, conta_id)
+        if not conta or conta.usuario_id != current_user.id:
+            flash('Conta inválida.', 'error')
+            return redirect(url_for('lancamentos'))
 
     dados, erro = _validar_lancamento(request.form)
     if erro:
@@ -721,7 +729,9 @@ def add():
         return redirect(url_for('lancamentos'))
     db.session.add(Lancamento(conta_id=conta.id, **dados))
     db.session.commit()
-    flash('Lançamento adicionado!', 'success')
+    ativa = _get_conta()
+    flash('Lançamento adicionado!' if conta.id == ativa.id
+          else f'Lançamento adicionado na conta "{conta.nome}".', 'success')
     data_obj = dados['data_vencimento']
     return redirect(url_for('lancamentos', mes=data_obj.month, ano=data_obj.year))
 
@@ -947,6 +957,16 @@ def importar_confirmar():
         flash('Nenhum lançamento selecionado.', 'error')
     return redirect(url_for('lancamentos'))
 
+# ── App instalável (PWA) ──────────────────────────────────────────────────────
+@app.route('/sw.js')
+def service_worker():
+    """O service worker precisa estar na raiz para valer para o site todo. Na Vercel a CDN
+    serve public/sw.js direto; localmente quem serve é esta rota."""
+    resp = send_from_directory(os.path.join(app.root_path, 'public'), 'sw.js',
+                               mimetype='text/javascript')
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp
+
 # ── Lançamento por voz ────────────────────────────────────────────────────────
 @app.route('/voz/interpretar', methods=['POST'])
 @login_required
@@ -957,10 +977,12 @@ def voz_interpretar():
     if not texto:
         return jsonify(erro='Não ouvi nada. Tente de novo.'), 400
     cats = _cats_select(current_user.id)
-    resultado = voz.interpretar(texto, _hoje(), cats)
-    conta = _get_conta()
-    return jsonify({**resultado, 'texto': texto, 'categorias': cats,
-                    'conta': conta.nome if conta else None})
+    contas = [{'id': c.id, 'nome': c.nome, 'banco': c.banco} for c in current_user.contas]
+    resultado = voz.interpretar(texto, _hoje(), cats, contas)
+    if not resultado['conta_id']:               # nenhuma conta citada: usa a ativa
+        conta = _get_conta()
+        resultado['conta_id'] = conta.id if conta else None
+    return jsonify({**resultado, 'texto': texto, 'categorias': cats})
 
 if __name__ == '__main__':
     app.run(debug=True, host='127.0.0.1')

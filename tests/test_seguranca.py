@@ -109,3 +109,23 @@ def test_admin_renomeado_nao_e_recriado(app, m):
         finally:
             admin.username = ADMIN.username
             m.db.session.commit()
+
+
+def test_app_instalavel(app, novo_usuario, logar):
+    """Manifesto, ícones e service worker que o Android exige para instalar como app."""
+    import json
+    c = app.test_client()
+    sw = c.get('/sw.js')
+    assert sw.status_code == 200 and 'javascript' in sw.content_type
+    assert "addEventListener('fetch'" in sw.get_data(as_text=True)
+    man = json.loads(c.get('/static/manifest.json').get_data(as_text=True))
+    assert man['display'] == 'standalone' and man['start_url'] == '/' and man['id'] == '/'
+    tamanhos = {i['sizes'] for i in man['icons']}
+    assert {'192x192', '512x512'} <= tamanhos
+    for icone in man['icons']:
+        assert c.get(icone['src']).status_code == 200
+    for pagina in (c.get('/login'), logar(novo_usuario()).get('/')):
+        html = pagina.get_data(as_text=True)
+        assert 'rel="manifest"' in html and "register('/sw.js')" in html
+    # Usuário que ainda precisa trocar a senha também recebe o service worker
+    assert logar(novo_usuario(primeiro_acesso=True)).get('/sw.js').status_code == 200

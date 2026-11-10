@@ -743,3 +743,13 @@ tr:last-child td { border-bottom: none; }
     .voz-texto { font-size: 16px; }
     .main-content { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
 }
+
+/* Botão "Instalar app" do menu (é um <button> com a aparência de .nav-item) */
+.nav-instalar {
+    width: 100%; border: 1px dashed rgba(59,130,246,0.5); background: rgba(59,130,246,0.08);
+    color: var(--accent); font: inherit; cursor: pointer; text-align: left;
+}
+
+/* Campo que a voz não conseguiu identificar */
+.voz-pendente { border-color: var(--warning) !important; box-shadow: 0 0 0 1px var(--warning); }
+.valor-wrap:has(.voz-pendente) { border-color: var(--warning); }
