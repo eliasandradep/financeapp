@@ -15,7 +15,7 @@
 </div>
 
 <!-- Cards de resumo anual -->
-<div class="grid-3">
+<div class="grid-4">
     <div class="card-box">
         <h3><i class="fa-solid fa-arrow-up" style="color: #22c55e;"></i> Total Receitas</h3>
         <p style="font-size: 1.5rem; font-weight: bold; color: #22c55e; margin-top: 8px;">
@@ -29,8 +29,14 @@
         </p>
     </div>
     <div class="card-box">
+        <h3><i class="fa-solid fa-chart-line" style="color: #60a5fa;"></i> Total Investido</h3>
+        <p style="font-size: 1.5rem; font-weight: bold; color: #60a5fa; margin-top: 8px;">
+            {{ total_inv | brl }}
+        </p>
+    </div>
+    <div class="card-box">
         <h3><i class="fa-solid fa-scale-balanced" style="color: #3b82f6;"></i> Saldo do Ano</h3>
-        {% set saldo_ano = total_rec - total_des %}
+        {% set saldo_ano = total_rec - total_des - total_inv %}
         <p style="font-size: 1.5rem; font-weight: bold; color: {{ '#22c55e' if saldo_ano >= 0 else '#ef4444' }}; margin-top: 8px;">
             {{ saldo_ano | brl }}
         </p>
@@ -53,6 +59,7 @@
                 <th>MÊS</th>
                 <th style="color: #22c55e;">RECEITAS</th>
                 <th style="color: #ef4444;">DESPESAS</th>
+                <th style="color: #60a5fa;">INVESTIMENTOS</th>
                 <th>SALDO</th>
                 <th>SITUAÇÃO</th>
             </tr>
@@ -60,20 +67,22 @@
         <tbody>
             {% set tem_dados = namespace(value=false) %}
             {% for r in resumo %}
-            {% if r.receita > 0 or r.despesa > 0 %}
+            {% set vazio = r.receita == 0 and r.despesa == 0 and r.investimento == 0 %}
+            {% if not vazio %}
                 {% set tem_dados.value = true %}
             {% endif %}
-            <tr style="{{ 'opacity: 0.4;' if r.receita == 0 and r.despesa == 0 }}">
+            <tr style="{{ 'opacity: 0.4;' if vazio }}">
                 <td style="font-weight: bold;">{{ r.nome }}</td>
                 <td data-label="Receitas" style="color: #22c55e;">{{ r.receita | brl }}</td>
                 <td data-label="Despesas" style="color: #ef4444;">{{ r.despesa | brl }}</td>
+                <td data-label="Investimentos" style="color: #60a5fa;">{{ r.investimento | brl }}</td>
                 <td data-label="Saldo">
                     <strong style="color: {{ '#22c55e' if r.saldo >= 0 else '#ef4444' }};">
                         {{ r.saldo | brl }}
                     </strong>
                 </td>
                 <td data-label="Situação">
-                    {% if r.receita == 0 and r.despesa == 0 %}
+                    {% if vazio %}
                         <span style="color: var(--text-muted); font-size: 0.8rem;">sem dados</span>
                     {% elif r.saldo >= 0 %}
                         <span class="status-badge status-pago">
@@ -92,8 +101,9 @@
                 <td>TOTAL</td>
                 <td data-label="Receitas" style="color: #22c55e;">{{ total_rec | brl }}</td>
                 <td data-label="Despesas" style="color: #ef4444;">{{ total_des | brl }}</td>
+                <td data-label="Investimentos" style="color: #60a5fa;">{{ total_inv | brl }}</td>
                 <td data-label="Saldo">
-                    {% set saldo_ano = total_rec - total_des %}
+                    {% set saldo_ano = total_rec - total_des - total_inv %}
                     <strong style="color: {{ '#22c55e' if saldo_ano >= 0 else '#ef4444' }};">
                         {{ saldo_ano | brl }}
                     </strong>
@@ -115,6 +125,7 @@
     const meses = {{ resumo|map(attribute='nome')|list|tojson|safe }};
     const receitas = {{ resumo|map(attribute='receita')|list|tojson|safe }};
     const despesas = {{ resumo|map(attribute='despesa')|list|tojson|safe }};
+    const investimentos = {{ resumo|map(attribute='investimento')|list|tojson|safe }};
 
     new Chart(document.getElementById('chartAnual'), {
         type: 'bar',
@@ -134,6 +145,14 @@
                     data: despesas,
                     backgroundColor: 'rgba(239, 68, 68, 0.7)',
                     borderColor: '#ef4444',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Investimentos',
+                    data: investimentos,
+                    backgroundColor: 'rgba(96, 165, 250, 0.7)',
+                    borderColor: '#60a5fa',
                     borderWidth: 1,
                     borderRadius: 4
                 }

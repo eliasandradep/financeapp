@@ -167,3 +167,54 @@ def test_telas_abrem(app, novo_usuario, logar):
     for url in ['/', '/lancamentos', '/contas', '/configuracoes', '/relatorios', '/importar',
                 '/admin/usuarios', '/alterar-senha']:
         assert c.get(url).status_code == 200, url
+
+
+# ── Tipo Investimento ────────────────────────────────────────────────────────
+def test_investimento_e_saida_separada_das_despesas(app, m, novo_usuario, logar):
+    u = novo_usuario()
+    c = logar(u)
+    r = c.post('/configuracoes/categoria/add', data={'nome': 'Investimentos', 'tipo': 'Investimento'})
+    assert r.status_code == 302
+    dia = {'data': '2026-10-10', 'pago': 'on'}
+    c.post('/add', data={**dia, 'descricao': 'Salário', 'tipo': 'Receita', 'categoria': 'Salário', 'valor': '1000'})
+    c.post('/add', data={**dia, 'descricao': 'Mercado', 'tipo': 'Despesa', 'categoria': 'Alimentação', 'valor': '300'})
+    c.post('/add', data={**dia, 'descricao': 'CDB', 'tipo': 'Investimento', 'categoria': 'Investimentos', 'valor': '200'})
+    assert _lanc(app, m, u, 'CDB').tipo == 'Investimento'
+
+    h = c.get('/?mes=10&ano=2026').get_data(as_text=True)
+    assert 'Investido: <strong>R$ 200,00</strong>' in h
+    assert 'Pago: <strong>R$ 300,00</strong>' in h            # investimento não conta como despesa
+    assert 'R$ 500,00' in h                                     # saldo = 1000 - 300 - 200
+    # O gr\u00e1fico "Gastos por categoria" mostra s\u00f3 despesas
+    import json
+    assert json.loads(re.search(r'labels: (\[.*?\])', h).group(1)) == ['Alimenta\u00e7\u00e3o']
+
+    h = c.get('/relatorios?ano=2026').get_data(as_text=True)
+    assert 'Total Investido' in h and '<th style="color: #60a5fa;">INVESTIMENTOS</th>' in h
+
+    h = c.get('/lancamentos?mes=10&ano=2026').get_data(as_text=True)
+    assert 'Aplicado' in h and '<option value="Investimento">Investimento</option>' in h
+
+
+def test_mudar_tipo_da_categoria_converte_os_lancamentos(app, m, novo_usuario, logar, flashes):
+    u = novo_usuario()
+    c = logar(u)
+    c.post('/configuracoes/categoria/add', data={'nome': 'Investimentos', 'tipo': 'Despesa'})
+    c.post('/add', data={**BASE, 'descricao': 'APORTE', 'categoria': 'Investimentos'})
+    with app.app_context():
+        cat_id = m.Categoria.query.filter_by(usuario_id=u.id, nome='Investimentos').first().id
+    c.post(f'/configuracoes/categoria/edit/{cat_id}', data={'nome': 'Investimentos', 'tipo': 'Investimento'})
+    assert _lanc(app, m, u, 'APORTE').tipo == 'Investimento'
+    assert any('1 lançamento(s) passaram para Investimento' in f for f in flashes(c))
+
+
+def test_tipo_invalido_na_categoria_e_recusado(app, m, novo_usuario, logar, flashes):
+    u = novo_usuario()
+    c = logar(u)
+    c.post('/configuracoes/categoria/add', data={'nome': 'X', 'tipo': 'Qualquer'})
+    assert 'Tipo inválido.' in flashes(c)
+    with app.app_context():
+        cat_id = m.Categoria.query.filter_by(usuario_id=u.id, nome='Alimentação').first().id
+    c.post(f'/configuracoes/categoria/edit/{cat_id}', data={'nome': 'Alimentação', 'tipo': 'Qualquer'})
+    with app.app_context():
+        assert m.db.session.get(m.Categoria, cat_id).tipo == 'Despesa'

@@ -23,8 +23,11 @@
         <p style="color: #ef4444;">
             <i class="fa-solid fa-arrow-down"></i> Pago: <strong>{{ des_real | brl }}</strong>
         </p>
+        <p style="color: #60a5fa;">
+            <i class="fa-solid fa-chart-line"></i> Investido: <strong>{{ inv_real | brl }}</strong>
+        </p>
         <hr style="margin: 10px 0; border: 0; border-top: 1px solid #334155;">
-        {% set saldo_atual = rec_real - des_real %}
+        {% set saldo_atual = rec_real - des_real - inv_real %}
         <p>Saldo Atual:
             <strong style="color: {{ '#22c55e' if saldo_atual >= 0 else '#ef4444' }}; font-size: 1.1rem;">
                 {{ saldo_atual | brl }}
@@ -40,8 +43,11 @@
         <p>
             <i class="fa-solid fa-arrow-down" style="color: #ef4444;"></i> Total Despesas: <strong>{{ des_prev | brl }}</strong>
         </p>
+        <p>
+            <i class="fa-solid fa-chart-line" style="color: #60a5fa;"></i> Total Investimentos: <strong>{{ inv_prev | brl }}</strong>
+        </p>
         <hr style="margin: 10px 0; border: 0; border-top: 1px solid #334155;">
-        {% set saldo_prev = rec_prev - des_prev %}
+        {% set saldo_prev = rec_prev - des_prev - inv_prev %}
         <p>Saldo Previsto:
             <strong style="color: {{ '#22c55e' if saldo_prev >= 0 else '#ef4444' }}; font-size: 1.1rem;">
                 {{ saldo_prev | brl }}

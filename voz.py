@@ -178,12 +178,17 @@ _PALAVRAS_RECEITA = ['ganhei', 'ganhamos', 'ganho', 'recebi', 'recebemos', 'rece
 _PALAVRAS_DESPESA = ['gastei', 'gastamos', 'gasto', 'gastos', 'paguei', 'pagamos', 'pagamento',
                      'comprei', 'compramos', 'compra', 'despesa', 'saida', 'conta de', 'boleto',
                      'fatura', 'vou pagar', 'a pagar', 'tenho que pagar', 'preciso pagar']
+_PALAVRAS_INVESTIMENTO = ['investi', 'investimos', 'investimento', 'aporte', 'aportei', 'aportamos',
+                          'apliquei', 'aplicamos', 'fiz um aporte', 'fiz um investimento', 'fiz uma aplicacao']
 _RE_RECEITA = re.compile(_alt(_PALAVRAS_RECEITA))
 _RE_DESPESA = re.compile(_alt(_PALAVRAS_DESPESA))
+_RE_INVESTIMENTO = re.compile(_alt(_PALAVRAS_INVESTIMENTO))
 
 # Removidas da descrição (só indicam o tipo/situação, não o que foi)
 _RE_RUIDO = re.compile(_alt([
     'tive um gasto', 'tive uma despesa', 'tive um ganho', 'tive uma receita', 'tive uma entrada',
+    'fiz um aporte', 'fiz um investimento', 'fiz uma aplicacao', 'investi', 'investimos', 'aportei',
+    'aportamos', 'apliquei', 'aplicamos',
     'gastei', 'gastamos', 'gasto', 'gastos', 'paguei', 'pagamos', 'ganhei', 'ganhamos', 'ganho',
     'recebi', 'recebemos', 'lucrei', 'faturei', 'despesa', 'receita', 'entrada', 'saida',
     'me pagaram', 'me pagou', 'me deram', 'vou pagar', 'tenho que pagar', 'preciso pagar',
@@ -250,6 +255,9 @@ def sugerir_categoria(texto, nomes):
 
 # ── Forma de pagamento / recebimento ──────────────────────────────────────────
 FORMAS_PAGAMENTO = ['Dinheiro', 'Pix', 'Cartão de Crédito', 'Cartão de Débito']
+
+# Tipos de fluxo. Investimento é uma saída que não é gasto: reduz o saldo, mas fica fora das despesas.
+TIPOS_FLUXO = ['Receita', 'Despesa', 'Investimento']
 
 _PREP = r'(?:\b(?:no|na|pelo|pela|via|com|em|por|um|uma|o|a)\s+)*'   # "no", "pelo", "um"... antes
 _PREP_OBRIG = r'(?:\b(?:no|na|pelo|pela|via|com|em)\s+)+'            # "crédito" sozinho não basta
@@ -358,13 +366,10 @@ def interpretar(texto, hoje, categorias, contas=None):
     valor, span = _extrair_valor(t)
     t = _remover(t, span, conectivo_antes=True)
 
-    rec, desp = _RE_RECEITA.search(t), _RE_DESPESA.search(t)
-    if rec and (not desp or rec.start() < desp.start()):
-        tipo = 'Receita'
-    elif desp:
-        tipo = 'Despesa'
-    else:
-        tipo = ''                       # decidido abaixo pela categoria, se possível
+    # O primeiro verbo/palavra-chave da frase decide ("recebi o pagamento" -> Receita)
+    achados = [(m.start(), tp) for tp, rx in (('Receita', _RE_RECEITA), ('Despesa', _RE_DESPESA),
+                                              ('Investimento', _RE_INVESTIMENTO)) if (m := rx.search(t))]
+    tipo = min(achados)[1] if achados else ''      # vazio: decidido abaixo pela categoria, se possível
 
     pago = not (_RE_PENDENTE.search(t) or data_l > hoje)
 
@@ -379,7 +384,7 @@ def interpretar(texto, hoje, categorias, contas=None):
     else:
         # Sem "gastei/recebi": a categoria pode indicar o tipo ("barrinha" -> Alimentação -> Despesa),
         # desde que só um dos tipos tenha uma categoria compatível.
-        achadas = {tp: c for tp in ('Despesa', 'Receita')
+        achadas = {tp: c for tp in TIPOS_FLUXO
                    if (c := _sugerir_categoria(texto_norm, categorias.get(tp, [])))}
         tipo, categoria = next(iter(achadas.items())) if len(achadas) == 1 else ('', '')
 

@@ -10,7 +10,7 @@
     const csrf = form.querySelector('[name=csrf_token]').value;
 
     const DICA = 'Ex.: "ontem gastei R$ 45 no mercado, no pix, pelo Nubank" ou "recebi 25 reais de uma venda".';
-    let rec = null, ouvindo = false, erroVoz = false, categorias = { Receita: [], Despesa: [] };
+    let rec = null, ouvindo = false, erroVoz = false, categorias = { Receita: [], Despesa: [], Investimento: [] };
 
     function setStatus(msg, erro) {
         status.textContent = msg;

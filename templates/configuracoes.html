@@ -21,7 +21,7 @@
                 <label>Tipo de Fluxo</label>
                 <select name="tipo" style="width: 100%;">
                     <option value="Despesa">Despesa</option>
-                    <option value="Receita">Receita</option>
+                    <option value="Receita">Receita</option><option value="Investimento">Investimento</option>
                 </select>
             </div>
 
@@ -44,8 +44,8 @@
                 <tr>
                     <td style="font-weight: bold; color: var(--text-main);">{{ c.nome }}</td>
                     <td data-label="Tipo">
-                        <span style="color: {{ '#22c55e' if c.tipo == 'Receita' else '#f87171' }}">
-                            <i class="fa-solid {{ 'fa-arrow-up' if c.tipo == 'Receita' else 'fa-arrow-down' }}"></i>
+                        <span style="color: {{ {'Receita': '#22c55e', 'Investimento': '#60a5fa'}.get(c.tipo, '#f87171') }}">
+                            <i class="fa-solid {{ {'Receita': 'fa-arrow-up', 'Investimento': 'fa-chart-line'}.get(c.tipo, 'fa-arrow-down') }}"></i>
                             {{ c.tipo }}
                         </span>
                     </td>
@@ -103,7 +103,7 @@
                 <label>Tipo</label>
                 <select name="tipo" id="edit_tipo">
                     <option value="Despesa">Despesa</option>
-                    <option value="Receita">Receita</option>
+                    <option value="Receita">Receita</option><option value="Investimento">Investimento</option>
                 </select>
             </div>
 

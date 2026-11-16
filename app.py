@@ -155,9 +155,10 @@ def inject_conta():
     if current_user.is_authenticated:
         contas = Conta.query.filter_by(usuario_id=current_user.id).order_by(Conta.nome).all()
         return {'user_contas': contas, 'conta_atual': _get_conta(),
-                'conta_tipo_icon': conta_tipo_icon, 'formas_pagamento': voz.FORMAS_PAGAMENTO}
+                'conta_tipo_icon': conta_tipo_icon, 'formas_pagamento': voz.FORMAS_PAGAMENTO,
+                'tipos_fluxo': voz.TIPOS_FLUXO}
     return {'user_contas': [], 'conta_atual': None, 'conta_tipo_icon': conta_tipo_icon,
-            'formas_pagamento': voz.FORMAS_PAGAMENTO}
+            'formas_pagamento': voz.FORMAS_PAGAMENTO, 'tipos_fluxo': voz.TIPOS_FLUXO}
 
 # ── Decoradores ───────────────────────────────────────────────────────────────
 def admin_required(f):
@@ -337,8 +338,7 @@ def _query_mes(mes, ano, conta_id):
 
 def _cats_select(usuario_id):
     cats = Categoria.query.filter_by(usuario_id=usuario_id).all()
-    return {'Receita': [c.nome for c in cats if c.tipo == 'Receita'],
-            'Despesa': [c.nome for c in cats if c.tipo == 'Despesa']}
+    return {tp: [c.nome for c in cats if c.tipo == tp] for tp in voz.TIPOS_FLUXO}
 
 def _categoria_valida(nome, tipo, cats=None):
     """Categoria vazia ou pertencente ao usuário atual e ao tipo informado."""
@@ -363,7 +363,7 @@ def _validar_lancamento(form):
     descricao = form.get('descricao', '').strip()
     tipo      = form.get('tipo', '')
     categoria = form.get('categoria', '').strip()
-    if tipo not in ('Receita', 'Despesa'):
+    if tipo not in voz.TIPOS_FLUXO:
         return None, 'Tipo inválido.'
     if not descricao:
         return None, 'A descrição é obrigatória.'
@@ -670,10 +670,10 @@ def index():
     (pm, pa), (nm, na) = _prev_next(mes, ano)
     dados = _query_mes(mes, ano, conta.id).all()
 
-    rec_real = sum(l.valor for l in dados if l.tipo == 'Receita' and l.pago)
-    des_real = sum(l.valor for l in dados if l.tipo == 'Despesa' and l.pago)
-    rec_prev = sum(l.valor for l in dados if l.tipo == 'Receita')
-    des_prev = sum(l.valor for l in dados if l.tipo == 'Despesa')
+    def total(tipo, so_quitados):
+        return sum(l.valor for l in dados if l.tipo == tipo and (l.pago or not so_quitados))
+    rec_real, des_real, inv_real = (total(tp, True) for tp in voz.TIPOS_FLUXO)
+    rec_prev, des_prev, inv_prev = (total(tp, False) for tp in voz.TIPOS_FLUXO)
 
     cats_map = {}
     for l in dados:
@@ -682,8 +682,8 @@ def index():
             cats_map[nome] = cats_map.get(nome, 0) + l.valor
 
     return render_template('dashboard.html',
-                           rec_real=rec_real, des_real=des_real,
-                           rec_prev=rec_prev, des_prev=des_prev,
+                           rec_real=rec_real, des_real=des_real, inv_real=inv_real,
+                           rec_prev=rec_prev, des_prev=des_prev, inv_prev=inv_prev,
                            categorias=cats_map,
                            mes_atual=mes, ano_atual=ano, nome_mes=MESES[mes],
                            prev_mes=pm, prev_ano=pa, next_mes=nm, next_ano=na)
@@ -796,7 +796,7 @@ def add_categoria():
     if not nome:
         flash('O nome é obrigatório.', 'error')
         return redirect(url_for('configuracoes'))
-    if tipo not in ('Receita', 'Despesa'):
+    if tipo not in voz.TIPOS_FLUXO:
         flash('Tipo inválido.', 'error')
         return redirect(url_for('configuracoes'))
     if Categoria.query.filter_by(nome=nome, usuario_id=current_user.id).first():
@@ -821,15 +821,21 @@ def edit_categoria(id):
     if novo_nome != cat.nome and Categoria.query.filter_by(nome=novo_nome, usuario_id=current_user.id).first():
         flash(f'Categoria "{novo_nome}" já existe.', 'error')
         return redirect(url_for('configuracoes'))
+    novo_tipo = request.form.get('tipo', cat.tipo)
+    if novo_tipo not in voz.TIPOS_FLUXO:
+        flash('Tipo inválido.', 'error')
+        return redirect(url_for('configuracoes'))
     conta_ids = [c.id for c in current_user.contas]
-    Lancamento.query.filter(
-        Lancamento.categoria == cat.nome,
-        Lancamento.conta_id.in_(conta_ids)
-    ).update({Lancamento.categoria: novo_nome})
-    cat.nome = novo_nome
-    cat.tipo = request.form.get('tipo', cat.tipo)
+    dos_lancamentos = Lancamento.query.filter(Lancamento.categoria == cat.nome,
+                                              Lancamento.conta_id.in_(conta_ids))
+    # O tipo segue a categoria: mudar "Investimentos" de Despesa para Investimento converte os lançamentos
+    movidos = dos_lancamentos.update({Lancamento.categoria: novo_nome, Lancamento.tipo: novo_tipo},
+                                     synchronize_session=False)
+    tipo_mudou = novo_tipo != cat.tipo
+    cat.nome, cat.tipo = novo_nome, novo_tipo
     db.session.commit()
-    flash('Categoria atualizada!', 'success')
+    flash(f'Categoria atualizada! {movidos} lançamento(s) passaram para {novo_tipo}.'
+          if tipo_mudou and movidos else 'Categoria atualizada!', 'success')
     return redirect(url_for('configuracoes'))
 
 @app.route('/configuracoes/categoria/delete/<int:id>', methods=['POST'])
@@ -860,23 +866,25 @@ def relatorios():
         Lancamento.conta_id == conta.id
     ).all()
 
+    chave = {'Receita': 'receita', 'Despesa': 'despesa', 'Investimento': 'investimento'}
     md = {}
     for l in dados:
-        m = l.data_vencimento.month
-        md.setdefault(m, {'receita': 0, 'despesa': 0})
-        md[m]['receita' if l.tipo == 'Receita' else 'despesa'] += l.valor
+        m = md.setdefault(l.data_vencimento.month, {'receita': 0, 'despesa': 0, 'investimento': 0})
+        m[chave[l.tipo]] += l.valor
 
     nomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-    resumo = [{'mes': i, 'nome': nomes[i-1],
-               'receita': md.get(i, {}).get('receita', 0),
-               'despesa': md.get(i, {}).get('despesa', 0),
-               'saldo':   md.get(i, {}).get('receita', 0) - md.get(i, {}).get('despesa', 0)}
-              for i in range(1, 13)]
+    resumo = []
+    for i in range(1, 13):
+        v = md.get(i, {'receita': 0, 'despesa': 0, 'investimento': 0})
+        # Saldo = o que sobrou na conta: investir também tira dinheiro dela
+        resumo.append({'mes': i, 'nome': nomes[i-1], **v,
+                       'saldo': v['receita'] - v['despesa'] - v['investimento']})
 
     total_rec = sum(r['receita'] for r in resumo)
     total_des = sum(r['despesa'] for r in resumo)
+    total_inv = sum(r['investimento'] for r in resumo)
     return render_template('relatorios.html', resumo=resumo, ano_atual=ano,
-                           total_rec=total_rec, total_des=total_des,
+                           total_rec=total_rec, total_des=total_des, total_inv=total_inv,
                            anos_disponiveis=list(range(_hoje().year, _hoje().year - 5, -1)))
 
 # ── Importar extrato ──────────────────────────────────────────────────────────
@@ -938,7 +946,7 @@ def importar_confirmar():
         tipo      = request.form.get(f'tipo_{i}', t.get('tipo', 'Despesa'))
         categoria = request.form.get(f'categoria_{i}', '').strip()
         forma     = request.form.get(f'forma_{i}', '').strip()
-        if (not data_obj or valor is None or tipo not in ('Receita', 'Despesa')
+        if (not data_obj or valor is None or tipo not in voz.TIPOS_FLUXO
                 or not _categoria_valida(categoria, tipo, cats)
                 or (forma and forma not in voz.FORMAS_PAGAMENTO)):
             continue

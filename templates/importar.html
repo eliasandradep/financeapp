@@ -127,11 +127,11 @@
                                 onchange="onTipoChange(this)"
                                 style="padding:6px 8px; font-size:0.82rem; width:auto;">
                             <option value="Despesa" {{ 'selected' if t.tipo == 'Despesa' }}>Despesa</option>
-                            <option value="Receita" {{ 'selected' if t.tipo == 'Receita' }}>Receita</option>
+                            <option value="Receita" {{ 'selected' if t.tipo == 'Receita' }}>Receita</option><option value="Investimento">Investimento</option>
                         </select>
                     </td>
                     <td data-label="Valor" style="text-align:right; font-weight:bold;
-                               color:{{ '#22c55e' if t.tipo == 'Receita' else '#ef4444' }};"
+                               color:{{ {'Receita': '#22c55e', 'Investimento': '#3b82f6'}.get(t.tipo, '#ef4444') }};"
                         id="val_{{ loop.index0 }}">
                         R$ {{ '%.2f'|format(t.valor) | replace('.', ',') }}
                     </td>
@@ -172,7 +172,7 @@
         fillCatOptions(document.getElementById('cat_' + idx), sel.value);
         // Update value color
         const valCell = document.getElementById('val_' + idx);
-        valCell.style.color = sel.value === 'Receita' ? '#22c55e' : '#ef4444';
+        valCell.style.color = { Receita: '#22c55e', Investimento: '#3b82f6' }[sel.value] || '#ef4444';
     }
 
     function toggleAll(master) {

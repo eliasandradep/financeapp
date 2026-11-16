@@ -75,8 +75,8 @@ def test_interpretar(frase, esperado):
 
 CATS_COMPLETAS = {
     'Receita': ['Salário', 'Distribuição de Lucros', 'Aluguéis', 'Outras Receitas'],
-    'Despesa': ['Moradia', 'Alimentação', 'Transporte', 'Educação', 'Investimentos', 'Saúde', 'Lazer',
-                'Outras Despesas'],
+    'Despesa': ['Moradia', 'Alimentação', 'Transporte', 'Educação', 'Saúde', 'Lazer', 'Outras Despesas'],
+    'Investimento': ['Investimentos'],
 }
 CONTAS = [{'id': 1, 'nome': 'Conta Principal', 'banco': None},
           {'id': 2, 'nome': 'Nubank Cartão', 'banco': 'Nubank'},
@@ -92,8 +92,13 @@ CASOS_COMPLETOS = [
      dict(categoria='Transporte', forma_pagamento='Cartão de Crédito', conta_id=2, descricao='Gasolina')),
     ('recebi 2000 reais de aluguel do inquilino na conta principal',
      dict(tipo='Receita', categoria='Aluguéis', conta_id=1)),
-    # "apliquei" não diz o tipo, mas só Investimentos (despesa) combina com a frase
-    ('apliquei 500 reais no tesouro direto', dict(tipo='Despesa', categoria='Investimentos', valor=500.0)),
+    # Investimento: tipo próprio, pelo verbo ou pela categoria
+    ('apliquei 500 reais no tesouro direto',
+     dict(tipo='Investimento', categoria='Investimentos', valor=500.0, descricao='Tesouro direto')),
+    ('investi 1000 reais em CDB pelo nubank', dict(tipo='Investimento', categoria='Investimentos', conta_id=2)),
+    ('fiz um aporte de 300 reais', dict(tipo='Investimento', valor=300.0)),
+    ('tesouro direto 200 reais', dict(tipo='Investimento', categoria='Investimentos')),   # sem verbo
+    ('recebi 50 reais de rendimento do investimento', dict(tipo='Receita')),              # 1º verbo vence
     ('recebi 3000 de distribuição de lucros', dict(tipo='Receita', categoria='Distribuição de Lucros')),
     # Tipo deduzido pela categoria quando não há "gastei/recebi"
     ('barrinha de cereal 9,90 no débito', dict(tipo='Despesa', categoria='Alimentação',
